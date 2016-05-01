@@ -633,45 +633,14 @@ def handleData(data):
 
 def usage():
     return ('usage\n'
-            '\tnode parse_texte_ast.js filename.txt\n'
-            '\tcat filename.txt | node parse_texte_ast.js\n')
+            '\tnode parse_texte_ast.py filename.txt\n'
+            '\tcat filename.txt | node parse_texte_ast.py\n')
 
 if not len(sys.argv) >= 2:
-    # read stdin
     data = sys.stdin.read()
     data = data.decode('utf-8')
     handleData(data)
 else:
     data = codecs.open(sys.argv[1], 'r', 'utf-8').read()
     codecs.register(lambda name: codecs.lookup('utf-8') if name == 'cp65001' else None)
-    # data = data.encode('utf-8')
-    # print(data)
     handleData(data)
-
-# if not process.argv[2]:
-#     if process.stdin.isTTY:
-#         console.error(usage())
-#         process.exit(1)
-#     }
-#
-#     data = ''
-#     process.stdin.resume()
-#     process.stdin.setEncoding(u'utf8')
-#     process.stdin.on(u'data', function(chunk) {
-#         data += chunk
-#     })
-#     process.stdin.on(u'end', function() {
-#         if data:
-#             handleData(data)
-#         }
-#     })
-#
-# else:
-#     fs = require(u'fs')
-#
-#     fs.readFile(process.argv[2], u'utf8', function (err, data) {
-#         if err:
-#             return console.log(err)
-#
-#         handleData(data)
-#     })
