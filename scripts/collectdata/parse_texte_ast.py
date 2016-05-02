@@ -6,16 +6,16 @@ import sys
 import json
 import codecs
 
-DELIMITERS = re.compile(u'(\xa0|\s|\(|\)|\.|\!|’|,)')
-KEYWORD_ARTICLE = u'Article'
-KEYWORD_NEW_ARTICLE = u'nouveau'
-KEYWORD_ARTICLE_REFERENCE = u'article'
-KEYWORD_PARTS = [
+TOKEN_DELIMITERS = re.compile(u'(\xa0|\s|\(|\)|\.|\!|’|,)')
+TOKEN_ARTICLE = u'Article'
+TOKEN_NEW_ARTICLE = u'nouveau'
+TOKEN_ARTICLE_REFERENCE = u'article'
+TOKEN_PARTS = [
     u'article', u'articles',
     u'alinéa', u'alinéas',
     u'phrase', u'phrases'
 ]
-KEYWORD_MONTH_NAMES = [
+TOKEN_MONTH_NAMES = [
     u'janvier',
     u'février',
     u'mars',
@@ -29,15 +29,38 @@ KEYWORD_MONTH_NAMES = [
     u'novembre',
     u'décembre'
 ]
-KEYWORDS = [
-    KEYWORD_ARTICLE,
-    KEYWORD_NEW_ARTICLE,
-    KEYWORD_ARTICLE_REFERENCE
+TOKEN_MULTIPLICATIVE_ADVERBS = [
+    'bis',
+    'ter',
+    'quater',
+    'quinquies',
+    'sexies',
+    'septies',
+    'octies',
+    'novies',
+    'decies',
+    'undecies',
+    'duodecies',
+    'terdecies',
+    'quaterdecies',
+    'quindecies',
+    'sexdecies',
+    'septdecies',
+    'octodecies',
+    'novodecies',
+    'vicies',
+    'unvicies',
+    'duovicies',
+    'tervicies',
+    'quatervicies',
+    'quinvicies',
+    'sexvicies',
+    'septvicies'
 ]
 
 def tokenize(text):
     text = text.replace(u'\xa0', u' ')
-    tokens = DELIMITERS.split(text)
+    tokens = TOKEN_DELIMITERS.split(text)
     # remove empty strings
     tokens = filter(lambda s: s != '', tokens)
     return tokens
@@ -69,34 +92,27 @@ def isSpace(token):
     return re.compile('^\s+$').match(token)
 
 def isArticlePart(token):
-    return KEYWORD_PARTS.index(token) >= 0
+    return TOKEN_PARTS.index(token) >= 0
 
 def parseInt(s):
     return int(re.search(r'\d+', s).group())
 
-def parseRomanNumber(number):
-    if number == u'I':
-        return 1
-    elif number == u'II':
-        return 2
-    elif number == u'III':
-        return 3
-    elif number == u'IV':
-        return 4
-    elif number == u'V':
-        return 5
-    elif number == u'VI':
-        return 6
-    elif number == u'VII':
-        return 7
-    elif number == u'VIII':
-        return 8
+def parseRomanNumber(n):
+    romans_map = zip(
+        (1000,  900, 500, 400 , 100,  90 , 50 ,  40 , 10 ,   9 ,  5 ,  4  ,  1),
+        ( 'M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I')
+    )
 
-    return -1
-
+    n = n.upper()
+    i = res = 0
+    for d, r in romans_map:
+        while n[i:i + len(r)] == r:
+            res += d
+            i += len(r)
+    return res
 
 def isRomanNumber(token):
-    return parseRomanNumber(token) != -1
+    return re.compile(r"[IVXCLDM]+", re.I)
 
 def isNumberWord(word):
     return wordToNumber(word) >= 0
@@ -121,7 +137,7 @@ def wordToNumber(word):
     return -1
 
 def monthToNumber(month):
-    return KEYWORD_MONTH_NAMES.index(month) + 1
+    return TOKEN_MONTH_NAMES.index(month) + 1
 
 def createNode(parent, node):
     node['parent'] = parent
@@ -170,7 +186,6 @@ def parseLawReference(tokens, i, parent):
     # print('parseLawReference end', tokens[i:i+4])
 
     return i
-
 
 # article {articleId} du code {codeName}, les mots :
 # article {articleId} du code {codeName} est ainsi modifié :
@@ -428,17 +443,15 @@ def parseArticleEdit(tokens, i, parent):
     elif tokens[i + 4] == u'inséré' or tokens[i + 4] == u'ajouté':
         node['editType'] = 'add'
         i = parseReference(tokens, i + 6, node)
-        # i = skipToEndOfLine(tokens, i)
     # est complété par
     elif tokens[i + 2] == u'complété':
         node['editType'] = 'add'
         i = parseReference(tokens, i + 6, node)
-        # i = skipToEndOfLine(tokens, i)
     # est abrogé
     elif tokens[i + 2] == u'abrogé':
         node['editType'] = 'delete'
         i = skipToEndOfLine(tokens, i)
-    elif parent['type'] == 'article' and parent['isNew'] and parent.len(children) == 0:
+    elif parent['type'] == 'article' and parent['isNew'] and len(parent['children']) == 0:
         node['editType'] = 'add'
         i = parseNewArticleContent(tokens, i, node)
     else:
@@ -527,11 +540,14 @@ def parseArticleHeader1(tokens, i, parent):
     if isRomanNumber(tokens[i]) and tokens[i + 1] == u'.':
         node['number'] = parseRomanNumber(tokens[i])
         i = skipToNextWord(tokens, i + 2)
+    else:
+        removeNode(parent, node)
+        node = parent
 
     i = parseArticleEdit(tokens, i, node)
     i = parseForEach(parseArticleHeader2, tokens, i, node)
 
-    if len(node['children']) == 0:
+    if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
     # print('parseArticleHeader1 end', tokens[i:i+4])
@@ -554,11 +570,14 @@ def parseArticleHeader2(tokens, i, parent):
         node['number'] = parseInt(tokens[i])
         # skip {number}°
         i = skipToNextWord(tokens, i + 2)
+    else:
+        removeNode(parent, node)
+        node = parent
 
     i = parseArticleEdit(tokens, i, node)
     i = parseForEach(parseArticleHeader3, tokens, i, node)
 
-    if len(node['children']) == 0:
+    if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
     # print('parseArticleHeader2 end', tokens[i:i+4])
@@ -586,10 +605,13 @@ def parseArticleHeader3(tokens, i, parent):
         else:
             i += 7
         # i = parseArticleEdit(tokens, i, node)
+    else:
+        removeNode(parent, node)
+        node = parent
 
     i = parseArticleEdit(tokens, i, node)
 
-    if len(node['children']) == 0:
+    if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
     # print('parseArticleHeader3 end', tokens[i:i+4])
@@ -610,30 +632,35 @@ def parseForEach(fn, tokens, i, parent):
 def parseArticle(tokens, i, parent):
     # print('parseArticle', tokens[i:i+4])
 
+    if tokens[i] != TOKEN_ARTICLE:
+        return i
+
+    i += 2
+
     node = createNode(parent, {
         'type': 'article',
         'isNew': False,
         'children': [],
     })
 
-    # read the article number and skip it
-    node['articleNumber'] = parseInt(tokens[i])
+    if tokens[i] == u'unique':
+        node['articleNumber'] = 1
+    else:
+        # read the article number
+        node['articleNumber'] = parseInt(tokens[i])
 
-    # Article {number}bis
-    if re.compile('^.*bis$').match(tokens[i]):
-        node['isBis'] = True
-    elif re.compile('^.*quater$').match(tokens[i]):
-        node['isQuater'] = True
-    elif re.compile('^.*ter$').match(tokens[i]):
-        node['isTer'] = True
-    elif re.compile('^.*quinquies$').match(tokens[i]):
-        node['isQuinquies'] = True
+    # Article {number}{multiplicativeAdverb}
+    adverbs = TOKEN_MULTIPLICATIVE_ADVERBS.sort(key = lambda s: -len(s))
+    for adverb in TOKEN_MULTIPLICATIVE_ADVERBS:
+        if tokens[i].endswith(adverb):
+            node['is' + adverb.title()] = True;
+            break
 
     i += 1
 
     node['isNew'] = False
     j = skipSpaces(tokens, i)
-    if tokens[j] == '(' and tokens[j + 1] == KEYWORD_NEW_ARTICLE and tokens[j + 2] == u')':
+    if tokens[j] == '(' and tokens[j + 1] == TOKEN_NEW_ARTICLE and tokens[j + 2] == u')':
         node['isNew'] = True
         i = j + 3
 
@@ -660,9 +687,8 @@ def parse(text):
     i = 0
 
     while (i < len(tokens)):
-        # if the KEYWORD_ARTICLE keyword is at the beginning of a line
-        if tokens[i - 1] == '\n' and tokens[i] == KEYWORD_ARTICLE:
-            i += 2
+        # if the TOKEN_ARTICLE keyword is at the beginning of a line
+        if tokens[i - 1] == '\n' and tokens[i] == TOKEN_ARTICLE:
             i = parseArticle(tokens, i, current)
         else:
             i += 1
