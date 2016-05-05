@@ -227,8 +227,8 @@ def parseArticleReference(tokens, i, parent):
         i += 2
 
     # article {articleId} de {lawReference}
-    if isNumber(tokens[i]):
-        node['articleId'] = parseInt(tokens[i])
+    if re.compile('\d+(-\d+)?').match(tokens[i]):
+        node['articleId'] = tokens[i]
         # de la loi
         # de l'ordonnance
         if (tokens[i + 2] == u'de' and tokens[i + 6] == u'loi') or (tokens[i + 2] == u'de' and tokens[i + 6] == u'ordonnance'):
