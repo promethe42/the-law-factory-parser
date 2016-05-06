@@ -1,0 +1,39 @@
+{
+  "children": [
+    {
+      "articleNumber": 1, 
+      "children": [
+        {
+          "children": [
+            {
+              "articleId": "38-2", 
+              "children": [
+                {
+                  "lawDate": "1958-12-22", 
+                  "lawId": "58-1270", 
+                  "lawType": "ordonnance", 
+                  "type": "law-reference"
+                }
+              ], 
+              "type": "article-reference"
+            }, 
+            {
+              "children": [
+                {
+                  "type": "quote", 
+                  "words": "Les dispositions du présent article sont applicables au procureur de la République financier près le tribunal de grande instance de Paris dans les mêmes conditions qu'au procureur de la République près le même tribunal."
+                }
+              ], 
+              "partType": "alinea", 
+              "type": "article-part-reference"
+            }
+          ], 
+          "editType": "add", 
+          "type": "article-edit"
+        }
+      ], 
+      "isNew": false, 
+      "type": "article"
+    }
+  ]
+}

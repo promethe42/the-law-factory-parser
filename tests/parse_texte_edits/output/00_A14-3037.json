@@ -1,0 +1,28 @@
+{
+  "children": [
+    {
+      "articleNumber": 1, 
+      "children": [
+        {
+          "children": [
+            {
+              "articleId": "11", 
+              "children": [
+                {
+                  "lawDate": "1978-7-17", 
+                  "lawId": "78-753", 
+                  "type": "law-reference"
+                }
+              ], 
+              "type": "article-reference"
+            }
+          ], 
+          "editType": "delete", 
+          "type": "article-edit"
+        }
+      ], 
+      "isNew": false, 
+      "type": "article"
+    }
+  ]
+}

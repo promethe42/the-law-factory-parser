@@ -1,0 +1,216 @@
+{
+  "children": [
+    {
+      "articleNumber": 1, 
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "articleId": "253-1", 
+                  "children": [
+                    {
+                      "codeName": "code rural et de la pêche maritime", 
+                      "type": "code-reference"
+                    }
+                  ], 
+                  "type": "article-reference"
+                }
+              ], 
+              "partOffset": "before", 
+              "partType": "article", 
+              "type": "article-part-reference"
+            }, 
+            {
+              "children": [
+                {
+                  "articleId": "253-1 A", 
+                  "type": "article-reference"
+                }, 
+                {
+                  "type": "quote", 
+                  "words": "Art. L. 253-1 A. - À compter du 1er janvier 2018, il est interdit aux personnes publiques mentionnées à l'article L. 1 du code général de la propriété des personnes publiques d'utiliser les produits phytopharmaceutiques visés par le premier alinéa de l'article L. 253-1, à l'exception des préparations naturelles peu préoccupantes visées au deuxième alinéa du même article, pour l'entretien des espaces verts, de forêts et de promenades relevant de leur domaine public ou privé."
+                }
+              ], 
+              "partType": "article", 
+              "type": "article-part-reference"
+            }
+          ], 
+          "editType": "add", 
+          "type": "article-edit"
+        }
+      ], 
+      "isNew": false, 
+      "type": "article"
+    }, 
+    {
+      "articleNumber": 2, 
+      "children": [
+        {
+          "children": [
+            {
+              "codeName": "code rural et de la pêche maritime", 
+              "type": "code-reference"
+            }
+          ], 
+          "editType": "edit", 
+          "type": "article-edit"
+        }, 
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "articleId": "253-7", 
+                  "type": "article-reference"
+                }
+              ], 
+              "editType": "edit", 
+              "type": "article-edit"
+            }, 
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "partNumber": 1, 
+                      "partOffset": "beginning", 
+                      "partType": "alinea", 
+                      "type": "article-part-reference"
+                    }, 
+                    {
+                      "children": [
+                        {
+                          "type": "quote", 
+                          "words": "I."
+                        }
+                      ], 
+                      "partType": "words", 
+                      "type": "article-part-reference"
+                    }
+                  ], 
+                  "editType": "add", 
+                  "type": "article-edit"
+                }
+              ], 
+              "number": 1, 
+              "type": "header-2"
+            }, 
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "type": "quote", 
+                          "words": "II. À compter du 1er janvier 2018, la mise sur le marché, la délivrance, l'utilisation et la détention des produits visés au premier alinéa de l'article L. 253-1 pour un usage non professionnel sont interdites."
+                        }
+                      ], 
+                      "partNumber": 2, 
+                      "partType": "header-1", 
+                      "type": "article-part-reference"
+                    }
+                  ], 
+                  "editType": "add", 
+                  "type": "article-edit"
+                }
+              ], 
+              "number": 2, 
+              "type": "header-2"
+            }
+          ], 
+          "number": 1, 
+          "type": "header-1"
+        }, 
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "articleId": "253-9", 
+                              "type": "article-reference"
+                            }
+                          ], 
+                          "type": "article-part-reference"
+                        }
+                      ], 
+                      "partNumber": 1, 
+                      "partType": "alinea", 
+                      "type": "article-part-reference"
+                    }
+                  ], 
+                  "partNumber": 1, 
+                  "partType": "sentence", 
+                  "type": "article-part-reference"
+                }, 
+                {
+                  "children": [
+                    {
+                      "type": "quote", 
+                      "words": "à usage professionnel"
+                    }
+                  ], 
+                  "partOffset": "after", 
+                  "partType": "words", 
+                  "type": "article-part-reference"
+                }, 
+                {
+                  "children": [
+                    {
+                      "type": "quote", 
+                      "words": "et non professionnel"
+                    }
+                  ], 
+                  "partType": "words", 
+                  "type": "article-part-reference"
+                }
+              ], 
+              "editType": "add", 
+              "type": "article-edit"
+            }, 
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "quote", 
+                      "words": "... ° Le fait de détenir en vue de la vente, d'offrir en vue de la vente ou de céder sous toute autre forme à titre gratuit ou onéreux, ainsi que le fait de vendre, de distribuer et d'effectuer d'autres formes de cession proprement dites d'un produit visé au premier alinéa de l'article L. 253-1 pour un usage non professionnel ;"
+                    }
+                  ], 
+                  "partNumber": "...", 
+                  "partType": "header-2", 
+                  "type": "article-part-reference"
+                }
+              ], 
+              "editType": "add", 
+              "type": "article-edit"
+            }
+          ], 
+          "number": 2, 
+          "type": "header-1"
+        }
+      ], 
+      "isNew": false, 
+      "type": "article"
+    }, 
+    {
+      "articleNumber": 3, 
+      "children": [
+        {
+          "articleContent": "Avant le 31 décembre 2014, le Gouvernement déposera sur le bureau du Parlement un rapport sur les freins tout à la fois juridiques et économiques qui empêchent le développement de la fabrication et de la commercialisation des substances à faible risque définies par le règlement communautaire (CE n° 1107/2009).", 
+          "type": "article-content"
+        }
+      ], 
+      "isNew": false, 
+      "type": "article"
+    }
+  ]
+}
