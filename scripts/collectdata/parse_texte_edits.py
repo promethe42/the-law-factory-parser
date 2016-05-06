@@ -17,7 +17,8 @@ TOKEN_DOUBLE_QUOTE_CLOSE = u'"'
 TOKEN_PARTS = [
     u'article', u'articles',
     u'alinéa', u'alinéas',
-    u'phrase', u'phrases'
+    u'phrase', u'phrases',
+    u'mention', u'mentions'
 ]
 TOKEN_MONTH_NAMES = [
     u'janvier',
@@ -96,7 +97,7 @@ def isSpace(token):
     return re.compile('^\s+$').match(token)
 
 def isArticlePart(token):
-    return TOKEN_PARTS.index(token) >= 0
+    return token in TOKEN_PARTS >= 0
 
 def parseInt(s):
     return int(re.search(r'\d+', s).group())
@@ -143,9 +144,12 @@ def wordToNumber(word):
 def monthToNumber(month):
     return TOKEN_MONTH_NAMES.index(month) + 1
 
-def createNode(parent, node):
+def pushNode(parent, node):
     node['parent'] = parent
     parent['children'].append(node)
+
+def createNode(parent, node):
+    pushNode(parent, node)
 
     return node
 
@@ -167,6 +171,39 @@ def removeEmptyChildrenList(root):
     if 'children' in root:
         for child in root['children']:
             removeEmptyChildrenList(child)
+
+def getDepth(node):
+    if not 'parent' in node:
+        return 0
+    return 1 + getDepth(node['parent'])
+
+def getAncestor(node, fn):
+    while not fn(node) and 'parent' in node:
+        node = node['parent']
+
+    if not fn(node):
+        return None
+
+    return node
+
+def getRoot(node):
+    while 'parent' in node:
+        node = node['parent']
+
+    return node
+
+def searchNode(root, fn):
+    return searchNodeRec(root, fn, [])
+
+def searchNodeRec(root, fn, results):
+    if fn(root):
+        results.append(root)
+
+    if 'children' in root:
+        for child in root['children']:
+            searchNodeRec(child, fn, results)
+
+    return results
 
 def parseLawReference(tokens, i, parent):
 
@@ -205,9 +242,24 @@ def parseLawReference(tokens, i, parent):
 
     return i
 
+def parseMultiplicativeAdverb(tokens, i, node):
+    if i >= len(tokens):
+        return i
+
+    adverbs = TOKEN_MULTIPLICATIVE_ADVERBS.sort(key = lambda s: -len(s))
+    for adverb in TOKEN_MULTIPLICATIVE_ADVERBS:
+        if tokens[i].endswith(adverb):
+            node['is' + adverb.title()] = True;
+            # skip {multiplicativeAdverb} and the following space
+            return i + 2
+    return i
+
 # article {articleId} du code {codeName}, les mots :
 # article {articleId} du code {codeName} est ainsi modifié :
 def parseArticleReference(tokens, i, parent):
+    if i >= len(tokens):
+        return i
+
     # print('parseArticleReference', tokens[i:i+4])
 
     if tokens[i].startswith(u'article') < 0 and tokens[i] != u'L' and tokens[i + 1] != u'.':
@@ -227,23 +279,31 @@ def parseArticleReference(tokens, i, parent):
         i += 2
 
     # article {articleId} de {lawReference}
-    if re.compile('\d+(-\d+)?').match(tokens[i]):
-        node['articleId'] = tokens[i]
-        # de la loi
-        # de l'ordonnance
-        if (tokens[i + 2] == u'de' and tokens[i + 6] == u'loi') or (tokens[i + 2] == u'de' and tokens[i + 6] == u'ordonnance'):
-            i = parseLawReference(tokens, i + 6, node)
-    # article {articleId} du code {codeReference}
-    else:
-        while i < len(tokens) and not re.compile('\d+(-[\d+])*').match(tokens[i - 1]):
+    if tokens[i] == 'L' and tokens[i + 1] == '.':
+        while not re.compile('\d+(-\d+)?').match(tokens[i]):
             node['articleId'] += tokens[i]
             i += 1
-        node['articleId'] = node['articleId'].strip()
 
-        i = skipSpaces(tokens, i)
+    if re.compile('\d+(-\d+)?').match(tokens[i]):
+        node['articleId'] = tokens[i]
+        # skip {articleId} and the following space
+        i += 2
 
-        if tokens[i] == u'du':
-            i = parseCodeReference(tokens, i + 2, node)
+    # {articleId} {articleLetter}
+    if re.compile('[A-Z]').match(tokens[i]):
+        node['articleId'] += ' ' + tokens[i]
+        # skip {articleLetter} and the following space
+        i += 2
+
+    i = parseMultiplicativeAdverb(tokens, i, node)
+
+    # de la loi
+    # de l'ordonnance
+    if (tokens[i] == u'de' and tokens[i + 4] == u'loi') or (tokens[i] == u'de' and tokens[i + 4] == u'ordonnance'):
+        i = parseLawReference(tokens, i + 4, node)
+    # du code
+    if tokens[i] == u'du' and tokens[i + 2] == 'code':
+        i = parseCodeReference(tokens, i + 2, node)
 
     # print('parseArticleReference end', tokens[i:i+4])
 
@@ -251,6 +311,9 @@ def parseArticleReference(tokens, i, parent):
 
 
 def parseArticlePartReference(tokens, i, parent):
+    if i >= len(tokens):
+        return i
+
     # print('parseArticlePartReference', tokens[i:i+4])
 
     node = createNode(parent, {
@@ -262,6 +325,14 @@ def parseArticlePartReference(tokens, i, parent):
     if tokens[i].lower() == u'après':
         node['partOffset'] = 'after'
         i += 2
+    # avant
+    if tokens[i].lower() == u'avant':
+        node['partOffset'] = 'before'
+        i += 2
+    # au début
+    elif tokens[i].lower() == u'au' and tokens[i + 2] == u'début':
+        node['partOffset'] = 'beginning'
+        i += 4
     # la fin du {article}
     elif tokens[i] == u'la' and tokens[i + 2] == u'fin':
         node['partOffset'] = 'end'
@@ -297,13 +368,23 @@ def parseArticlePartReference(tokens, i, parent):
     elif tokens[i].lower() in [u'le', u'l', u'un', u'la'] and isArticlePart(tokens[i + 2]):
         if tokens[i + 2] == u'alinéa':
             node['partType'] = 'alinea'
+            i += 4
         elif tokens[i + 2] == u'phrase':
             node['partType'] = 'sentence'
-
+            i += 4
+        elif tokens[i + 2] == u'mention':
+            node['partType'] = 'words'
+            i += 4
+        elif tokens[i + 2] == u'article':
+            node['partType'] = 'article'
+            i = parseArticleReference(tokens, i + 2, node)
+        # :
         # ainsi rédigé
-        if tokens[i + 6] == u'rédigé':
-            i = skipToQuoteStart(tokens, i + 8)
+        if tokens[i] == ':' or tokens[i + 2] == u'rédigé':
+            i = skipToQuoteStart(tokens, i)
             i = parseForEach(parseQuote, tokens, i, node)
+            if node['partType'] == 'words':
+                i = skipToEndOfLine(tokens, i)
     # le {partNumber}°
     # du {partNumber}°
     # un {partNumber}°
@@ -312,25 +393,36 @@ def parseArticlePartReference(tokens, i, parent):
         node['partType'] = 'header-2'
         node['partNumber'] = parseInt(tokens[i + 2])
         i += 4
-        if tokens[i] == u'bis':
-            node['isBis'] = True
-            i += 2
-        elif tokens[i] == u'ter':
-            node['isTer'] = True
-            i += 2
+        i = parseMultiplicativeAdverb(tokens, i)
+        i = parseArticlePartReference(tokens, i, node)
+        # ainsi rédigé
+        if tokens[i + 2] == u'rédigé':
+            i = skipToQuoteStart(tokens, i + 2)
+            i = parseForEach(parseQuote, tokens, i, node)
+    # un ... °
+    elif tokens[i].lower() == u'un' and ''.join(tokens[i + 2:i + 5]) == u'...' and tokens[i + 6] == u'°':
+        node['partType'] = 'header-2'
+        node['partNumber'] = '...'
+        i += 8
         i = parseArticlePartReference(tokens, i, node)
         # ainsi rédigé
         if tokens[i + 2] == u'rédigé':
             i = skipToQuoteStart(tokens, i + 2)
             i = parseForEach(parseQuote, tokens, i, node)
     # le {romanPartNumber}
+    # un {romanPartNumber}
     # du {romanPartNumber}
     elif tokens[i].lower() in [u'le', u'du', u'un'] and isRomanNumber(tokens[i + 2]):
         node['partType'] = 'header-1'
         node['partNumber'] = parseRomanNumber(tokens[i + 2])
-        # find u'article'
-        i = skipTokens(tokens, i, lambda t: not t.startswith(u'article'))
-        i = parseArticleReference(tokens, i, node)
+        i += 4
+        # de {articleReference}
+        if tokens[i] == 'de':
+            i = parseArticleReference(tokens, i + 6, node)
+        # ainsi rédigé
+        if tokens[i + 2] == u'rédigé':
+            i = skipToQuoteStart(tokens, i + 2)
+            i = parseForEach(parseQuote, tokens, i, node)
     # l'{partType} {partNumber}
     elif tokens[i].lower() == u'l' and tokens[i + 1] == TOKEN_SINGLE_QUOTE:
         if tokens[i + 2] == u'article':
@@ -348,15 +440,15 @@ def parseArticlePartReference(tokens, i, parent):
     elif tokens[i].lower() in [u'des', u'les']:
         # les mots
         if tokens[i + 2] == u'mots':
-            node['partType'] = 'sentence'
+            node['partType'] = 'words'
             i = skipToQuoteStart(tokens, i)
-            i = parseForEach(parseQuote, tokens, i, parent)
+            i = parseForEach(parseQuote, tokens, i, node)
             i = skipSpaces(tokens, i)
         else:
-            i = parseArticleReference(tokens, i + 2, parent)
+            i = parseArticleReference(tokens, i + 2, node)
             i = skipSpaces(tokens, i)
             if tokens[i] == u'et':
-                return parseArticleReference(tokens, i + 2, parent)
+                return parseArticleReference(tokens, i + 2, node)
     # {number} {partType}
     elif isNumberWord(tokens[i].lower()) and isArticlePart(tokens[i + 2]):
         if tokens[i + 2].startswith(u'alinéa'):
@@ -375,12 +467,14 @@ def parseArticlePartReference(tokens, i, parent):
     elif tokens[i].lower() in [u'le'] and tokens[i + 2] == u'même':
         # "le même {number} {part}" or "le même {part}"
         if tokens[i + 4] == u'alinéa' or tokens[i + 6] == u'alinéa':
-            alineas = searchNode(
+            alineaRefs = searchNode(
                 getRoot(parent),
                 lambda n: 'type' in n and n['type'] == 'article-part-reference' and 'partType' in n and n['partType'] == 'alinea'
             )
             # the last one in order of traversal is the previous one in order of syntax
-            node['children'].append(alineas[len(alineas) - 1])
+            # don't forget the current node is in the list too => -2 instead of -1
+            alinea = alineaRefs[-2].copy()
+            pushNode(node, alinea)
 
             node['partType'] = 'alinea'
 
@@ -395,26 +489,6 @@ def parseArticlePartReference(tokens, i, parent):
 
     return i
 
-
-def getRoot(node):
-    while 'parent' in node:
-        node = node['parent']
-
-    return node
-
-def searchNode(root, fn):
-    return searchNodeRec(root, fn, [])
-
-def searchNodeRec(root, fn, results):
-    if fn(root):
-        results.append(root)
-
-    if 'children' in root:
-        for child in root['children']:
-            searchNodeRec(child, fn, results)
-
-    return results
-
 def parseQuote(tokens, i, parent):
     if i >= len(tokens):
         return i
@@ -422,6 +496,7 @@ def parseQuote(tokens, i, parent):
     # print('parseQuote', tokens[i:i+4])
 
     if tokens[i] != TOKEN_DOUBLE_QUOTE_OPEN:
+        # print('parseQuote end', tokens[i:i+4])
         return i
 
     node = createNode(parent, {
@@ -435,9 +510,8 @@ def parseQuote(tokens, i, parent):
     while i < len(tokens) and tokens[i] != TOKEN_DOUBLE_QUOTE_CLOSE and tokens[i] != TOKEN_NEW_LINE:
         node['words'] += tokens[i]
         i += 1
-    node['words'] = node['words'].strip()
 
-    # skip '»'
+    # skip TOKEN_DOUBLE_QUOTE_CLOSE
     i += 1
     i = skipSpaces(tokens, i)
 
@@ -456,11 +530,22 @@ def parseArticleEdit(tokens, i, parent):
         'children': [],
     })
 
-    i = parseForEach(parseReference, tokens, i, node)
-    # i = parseReference(tokens, i, node)
-    # i = skipToNextWord(tokens, i)
+    r = parseForEach(parseReference, tokens, i, node)
+    # if we did not parse a reference
+    # "Il" (with a capital "i") is considered to be a back-reference
+    if r == i and tokens[i] != u'Il':
+        removeNode(parent, node)
+        # print('parseArticleEdit end', tokens[i:i+4])
+        return i
+    i = r
 
+    j = i
     i = skipTokens(tokens, i, lambda t: t != 'est' and t != 'sont')
+
+    if i >= len(tokens):
+        removeNode(parent, node)
+        # print('parseArticleEdit end', tokens[i:i+4])
+        return j
 
     # sont supprimés
     # sont supprimées
@@ -474,9 +559,11 @@ def parseArticleEdit(tokens, i, parent):
         node['editType'] = 'delete'
         i = skipToEndOfLine(tokens, i)
     # est ainsi modifié
-    elif tokens[i + 4] == u'modifié':
+    # est ainsi rédigé
+    elif tokens[i + 4] == u'modifié' or tokens[i + 4] == u'rédigé':
         node['editType'] = 'edit'
         i = skipToEndOfLine(tokens, i)
+        i = parseForEach(parseQuote, tokens, i, node)
     # est remplacé par
     # est remplacée par
     # sont remplacés par
@@ -487,30 +574,34 @@ def parseArticleEdit(tokens, i, parent):
         i += 6
         i = parseReference(tokens, i, node)
     # est inséré
+    # est insérée
     # est ajouté
-    elif tokens[i + 2] == u'inséré' or tokens[i + 2] == u'ajouté':
+    # est ajoutée
+    elif tokens[i + 2].startswith(u'inséré') or tokens[i + 2].startswith(u'ajouté'):
         node['editType'] = 'add'
-        i = parseReference(tokens, i + 6, node)
+        i = parseReference(tokens, i + 4, node)
     # est complété par
     elif tokens[i + 2] == u'complété':
         node['editType'] = 'add'
         i = parseReference(tokens, i + 6, node)
     elif parent['type'] == 'article' and parent['isNew'] and len(parent['children']) == 0:
         node['editType'] = 'add'
-        i = parseNewArticleContent(tokens, i, node)
+        i = parseRawArticleContent(tokens, i, node)
     else:
         removeNode(parent, node)
+        # print('parseArticleEdit end', tokens[i:i+4])
+        return j
 
     # print('parseArticleEdit end', tokens[i:i+4])
 
     return i
 
-def parseNewArticleContent(tokens, i, parent):
-    # print('parseNewArticleContent', tokens[i:i+4])
+def parseRawArticleContent(tokens, i, parent):
+    # print('parseRawArticleContent', tokens[i:i+4])
 
     node = createNode(parent, {
         'type': 'article-content',
-        articleContent: ''
+        'articleContent': ''
     })
 
     while i < len(tokens) and tokens[i] != TOKEN_NEW_LINE:
@@ -520,10 +611,17 @@ def parseNewArticleContent(tokens, i, parent):
     if node['articleContent'] == '' or isSpace(node['articleContent']):
         removeNode(parent, node)
 
-    # print('parseNewArticleContent end', tokens[i:i+4])
+    # print('parseRawArticleContent end', tokens[i:i+4])
 
     return i
 
+
+def parseCodeName(tokens, i, node):
+    while i < len(tokens) and tokens[i] != u',' and tokens[i] != u'est':
+        node['codeName'] += tokens[i]
+        i += 1
+    node['codeName'] = node['codeName'].strip()
+    return i
 
 def parseCodeReference(tokens, i, parent):
     if i >= len(tokens):
@@ -536,13 +634,25 @@ def parseCodeReference(tokens, i, parent):
         'codeName': ''
     })
 
-    if tokens[i] != u'code':
-        return i
-
-    while i < len(tokens) and tokens[i] != u',' and tokens[i] != u'est':
-        node['codeName'] += tokens[i]
-        i += 1
-    node['codeName'] = node['codeName'].strip()
+    # code
+    if tokens[i] == u'code':
+        i = parseCodeName(tokens, i, node)
+    # le code
+    if tokens[i].lower() == 'le' and tokens[i + 2] == 'code':
+        i = parseCodeName(tokens, i + 2, node)
+    # le même code
+    if tokens[i].lower() == 'le' and tokens[i + 2] == u'même' and tokens[i + 4] == 'code':
+        codeRefs = searchNode(
+            getRoot(parent),
+            lambda n: 'type' in n and n['type'] == 'code-reference'
+        )
+        removeNode(parent, node)
+        # the last one in order of traversal is the previous one in order of syntax
+        # don't forget the current node is in the list too => -2 instead of -1
+        node = codeRefs[-2].copy()
+        pushNode(parent, node)
+        # skip "le même code "
+        i += 6
 
     if node['codeName'] == '' or isSpace(node['codeName']):
         removeNode(parent, node)
@@ -560,11 +670,16 @@ def parseReference(tokens, i, parent):
     # i = skipSpaces(tokens, i)
     i = skipToNextWord(tokens, i)
 
+    if i >= len(tokens):
+        return i
+
+    c = parseCodeReference(tokens, i, parent)
+    if c != i:
+        return c
+
     # L’article L. 260 du code électoral
     if tokens[i].lower() == u'l' and tokens[i + 1] == TOKEN_SINGLE_QUOTE and tokens[i + 2] == u'article':
         i = parseArticleReference(tokens, i, parent)
-    elif tokens[i].lower() == u'le' and tokens[i + 2] == u'code':
-        i = parseCodeReference(tokens, i + 2, parent)
     else:
         i = parseArticlePartReference(tokens, i, parent)
 
@@ -590,6 +705,8 @@ def parseArticleHeader1(tokens, i, parent):
 
     # skip '{romanNumber}. - '
     if isRomanNumber(tokens[i]) and tokens[i + 1] == u'.':
+        # print('parseArticleHeader1 found article header-1', tokens[i])
+
         node['number'] = parseRomanNumber(tokens[i])
         i = skipToNextWord(tokens, i + 2)
     else:
@@ -622,6 +739,8 @@ def parseArticleHeader2(tokens, i, parent):
 
     i = skipSpaces(tokens, i)
     if re.compile(u'\d+°').match(tokens[i]):
+        # print('parseArticleHeader2 found article header-2', tokens[i])
+
         node['number'] = parseInt(tokens[i])
         # skip {number}°
         i = skipToNextWord(tokens, i + 2)
@@ -686,59 +805,6 @@ def parseForEach(fn, tokens, i, parent):
 
     return i
 
-def parseArticle(tokens, i, parent):
-    if i >= len(tokens):
-        return i
-
-    # print('parseArticle', tokens[i:i+4])
-
-    if tokens[i] != TOKEN_ARTICLE:
-        return i
-
-    i += 2
-
-    node = createNode(parent, {
-        'type': 'article',
-        'isNew': False,
-        'children': [],
-    })
-
-    if tokens[i] == u'unique':
-        node['articleNumber'] = 1
-    else:
-        # read the article number
-        node['articleNumber'] = parseInt(tokens[i])
-
-    # Article {number}{multiplicativeAdverb}
-    adverbs = TOKEN_MULTIPLICATIVE_ADVERBS.sort(key = lambda s: -len(s))
-    for adverb in TOKEN_MULTIPLICATIVE_ADVERBS:
-        if tokens[i].endswith(adverb):
-            node['is' + adverb.title()] = True;
-            break
-
-    i += 1
-
-    node['isNew'] = False
-    j = skipSpaces(tokens, i)
-    if tokens[j] == '(' and tokens[j + 1] == TOKEN_NEW_ARTICLE and tokens[j + 2] == u')':
-        node['isNew'] = True
-        i = j + 3
-
-    i = skipSpaces(tokens, i)
-
-    # (Supprimé)
-    if tokens[i] == u'(' and tokens[i + 1] == u'Supprimé' and tokens[i + 2] == u')':
-        node['isDeleted'] = True
-        i = skipToEndOfLine(tokens, i)
-        return i
-
-    # {romanNumber}.
-    i = parseForEach(parseArticleHeader1, tokens, i, node)
-
-    # print('parseArticle end', tokens[i:i+4])
-
-    return i
-
 def parseJSONArticles(data, parent):
     if 'articles' in data:
         for article_data in data['articles']:
@@ -765,6 +831,9 @@ def parseJSONAlineas(data, parent):
     text = TOKEN_NEW_LINE.join(value for key, value in list(iter(sorted(data.iteritems()))))
     tokens = tokenize(text)
     parseForEach(parseArticleHeader1, tokens, 0, parent)
+
+    if len(parent['children']) == 0:
+        parseRawArticleContent(tokens, 0, parent)
 
 def parseJSONData(data):
     node = {'children': []}
