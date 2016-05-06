@@ -9,7 +9,7 @@ import codecs
 
 # http://eli.thegreenplace.net/2014/04/02/dynamically-generating-python-test-cases
 class TestTexteEditsParser(unittest.TestCase):
-    pass
+    longMessage = True
 
 def get_compare_outputs_fn(description, input_filename, output_filename):
     def test(self):
@@ -17,13 +17,14 @@ def get_compare_outputs_fn(description, input_filename, output_filename):
             'python ../../scripts/collectdata/parse_texte_edits.py ' + input_filename,
             shell=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            universal_newlines=True
         )
         out, err = process.communicate()
         out = out.decode('utf-8')
 
         output_data = codecs.open(output_filename, 'r', 'utf-8').read()
-        self.assertEqual(out, output_data, description)
+        self.assertMultiLineEqual(out, output_data, description)
     return test
 
 if __name__ == '__main__':
