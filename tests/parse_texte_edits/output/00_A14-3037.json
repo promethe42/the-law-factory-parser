@@ -1,12 +1,10 @@
 {
   "children": [
     {
-      "articleNumber": 1, 
       "children": [
         {
           "children": [
             {
-              "articleId": "11", 
               "children": [
                 {
                   "lawDate": "1978-7-17", 
@@ -14,14 +12,16 @@
                   "type": "law-reference"
                 }
               ], 
+              "id": "11", 
               "type": "article-reference"
             }
           ], 
           "editType": "delete", 
-          "type": "article-edit"
+          "type": "edit"
         }
       ], 
       "isNew": false, 
+      "order": 1, 
       "type": "article"
     }
   ]
