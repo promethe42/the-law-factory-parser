@@ -7,28 +7,23 @@
             {
               "children": [
                 {
-                  "children": [
-                    {
-                      "codeName": "code rural et de la pêche maritime", 
-                      "type": "code-reference"
-                    }
-                  ], 
-                  "id": "L. 253-1", 
-                  "type": "article-reference"
-                }
-              ], 
-              "position": "before", 
-              "type": "reference-position"
-            }, 
-            {
-              "children": [
-                {
                   "type": "quote", 
                   "words": "Art. L. 253-1 A. - À compter du 1er janvier 2018, il est interdit aux personnes publiques mentionnées à l'article L. 1 du code général de la propriété des personnes publiques d'utiliser les produits phytopharmaceutiques visés par le premier alinéa de l'article L. 253-1, à l'exception des préparations naturelles peu préoccupantes visées au deuxième alinéa du même article, pour l'entretien des espaces verts, de forêts et de promenades relevant de leur domaine public ou privé."
                 }
               ], 
               "id": "L. 253-1 A", 
               "type": "article"
+            }, 
+            {
+              "children": [
+                {
+                  "id": "L. 253-1", 
+                  "position": "before", 
+                  "type": "article-reference"
+                }
+              ], 
+              "codeName": "code rural et de la pêche maritime", 
+              "type": "code-reference"
             }
           ], 
           "editType": "add", 
@@ -44,39 +39,9 @@
         {
           "children": [
             {
-              "codeName": "code rural et de la pêche maritime", 
-              "type": "code-reference"
-            }
-          ], 
-          "editType": "edit", 
-          "type": "edit"
-        }, 
-        {
-          "children": [
-            {
-              "children": [
-                {
-                  "id": "L. 253-7", 
-                  "type": "article-reference"
-                }
-              ], 
-              "editType": "edit", 
-              "type": "edit"
-            }, 
-            {
               "children": [
                 {
                   "children": [
-                    {
-                      "children": [
-                        {
-                          "order": 1, 
-                          "type": "alinea-reference"
-                        }
-                      ], 
-                      "position": "beginning", 
-                      "type": "reference-position"
-                    }, 
                     {
                       "children": [
                         {
@@ -85,6 +50,23 @@
                         }
                       ], 
                       "type": "mention"
+                    }, 
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "order": 1, 
+                              "position": "beginning", 
+                              "type": "alinea-reference"
+                            }
+                          ], 
+                          "id": "L. 253-7", 
+                          "type": "article-reference"
+                        }
+                      ], 
+                      "codeName": "code rural et de la pêche maritime", 
+                      "type": "code-reference"
                     }
                   ], 
                   "editType": "add", 
@@ -107,6 +89,16 @@
                       ], 
                       "order": 2, 
                       "type": "header1"
+                    }, 
+                    {
+                      "children": [
+                        {
+                          "id": "L. 253-7", 
+                          "type": "article-reference"
+                        }
+                      ], 
+                      "codeName": "code rural et de la pêche maritime", 
+                      "type": "code-reference"
                     }
                   ], 
                   "editType": "add", 
@@ -127,6 +119,15 @@
                 {
                   "children": [
                     {
+                      "type": "quote", 
+                      "words": "et non professionnel"
+                    }
+                  ], 
+                  "type": "words"
+                }, 
+                {
+                  "children": [
+                    {
                       "children": [
                         {
                           "children": [
@@ -139,32 +140,24 @@
                                       "words": "à usage professionnel"
                                     }
                                   ], 
+                                  "position": "after", 
                                   "type": "words-reference"
                                 }
                               ], 
-                              "position": "after", 
-                              "type": "reference-position"
+                              "order": 1, 
+                              "type": "sentence-reference"
                             }
                           ], 
-                          "id": "L. 253-9", 
-                          "type": "article-reference"
+                          "order": 1, 
+                          "type": "alinea-reference"
                         }
                       ], 
-                      "order": 1, 
-                      "type": "alinea-reference"
+                      "id": "L. 253-9", 
+                      "type": "article-reference"
                     }
                   ], 
-                  "order": 1, 
-                  "type": "sentence-reference"
-                }, 
-                {
-                  "children": [
-                    {
-                      "type": "quote", 
-                      "words": "et non professionnel"
-                    }
-                  ], 
-                  "type": "words"
+                  "codeName": "code rural et de la pêche maritime", 
+                  "type": "code-reference"
                 }
               ], 
               "editType": "add", 
@@ -181,28 +174,29 @@
                 {
                   "children": [
                     {
-                      "children": [
-                        {
-                          "id": "L. 253-15", 
-                          "type": "article-reference"
-                        }
-                      ], 
-                      "order": 1, 
-                      "type": "header2-reference"
-                    }
-                  ], 
-                  "position": "after", 
-                  "type": "reference-position"
-                }, 
-                {
-                  "children": [
-                    {
                       "type": "quote", 
                       "words": "... ° Le fait de détenir en vue de la vente, d'offrir en vue de la vente ou de céder sous toute autre forme à titre gratuit ou onéreux, ainsi que le fait de vendre, de distribuer et d'effectuer d'autres formes de cession proprement dites d'un produit visé au premier alinéa de l'article L. 253-1 pour un usage non professionnel ;"
                     }
                   ], 
                   "order": "...", 
                   "type": "header2"
+                }, 
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "order": 1, 
+                          "position": "after", 
+                          "type": "header2-reference"
+                        }
+                      ], 
+                      "id": "L. 253-15", 
+                      "type": "article-reference"
+                    }
+                  ], 
+                  "codeName": "code rural et de la pêche maritime", 
+                  "type": "code-reference"
                 }
               ], 
               "editType": "add", 

@@ -907,7 +907,6 @@ def parseQuote(tokens, i, parent):
 
     # "
     if tokens[i] == TOKEN_DOUBLE_QUOTE_OPEN:
-        debug(node, tokens, i, 'parseQuote end')
         i += 1
     # est rédigé(e)
     # est ainsi rédigé(e)
@@ -1334,7 +1333,7 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
         'sentence-reference',
         'words-reference'
     ]
-    if 'type' in node and node['type'] not in ref_types and len(node['children']) > 0 and node['children'][0]['type'] == 'edit' and node['children'][0]['editType'] == 'edit':
+    if 'type' in node and node['type'] not in ref_types and len(node['children']) > 1 and node['children'][0]['type'] == 'edit' and node['children'][0]['editType'] == 'edit':
         context = node['children'][0]['children'][0]
         removeNode(node, node['children'][0])
         ctx.append([deleteParent(ctx_node.copy()) for ctx_node in filterNodes(context, lambda x: x['type'] in ref_types)])
