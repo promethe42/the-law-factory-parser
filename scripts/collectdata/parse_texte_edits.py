@@ -67,7 +67,7 @@ TOKEN_MULTIPLICATIVE_ADVERBS = [
 
 def debug(node, tokens, i, msg):
     if '-v' in sys.argv:
-        print('    ' * getDepth(node) + msg + ' ' + str(tokens[i:i+4]))
+        print('    ' * getNodeDepth(node) + msg + ' ' + str(tokens[i:i+4]))
 
 def tokenize(text):
     text = text.replace(u'\xa0', u' ')
@@ -160,6 +160,7 @@ def pushNode(parent, node):
 
 def createNode(parent, node):
     pushNode(parent, node)
+    node['children'] = []
 
     return node
 
@@ -169,10 +170,10 @@ def removeNode(parent, node):
 def deleteParent(root):
     if 'parent' in root:
         del root['parent']
-
     if 'children' in root:
         for child in root['children']:
             deleteParent(child)
+    return root
 
 def removeEmptyChildrenList(root):
     if 'children' in root and len(root['children']) == 0:
@@ -182,18 +183,10 @@ def removeEmptyChildrenList(root):
         for child in root['children']:
             removeEmptyChildrenList(child)
 
-def getDepth(node):
+def getNodeDepth(node):
     if not 'parent' in node:
         return 0
-    return 1 + getDepth(node['parent'])
-
-def getAncestors(node, fn):
-    ancestors = []
-    while not fn(node) and 'parent' in node:
-        node = node['parent']
-        ancestors.append(node)
-
-    return ancestors
+    return 1 + getNodeDepth(node['parent'])
 
 def getRoot(node):
     while 'parent' in node:
@@ -201,16 +194,16 @@ def getRoot(node):
 
     return node
 
-def searchNode(root, fn):
-    return searchNodeRec(root, fn, [])
+def filterNodes(root, fn):
+    return filterNodesRec(root, fn, [])
 
-def searchNodeRec(root, fn, results):
+def filterNodesRec(root, fn, results):
     if fn(root):
         results.append(root)
 
     if 'children' in root:
         for child in root['children']:
-            searchNodeRec(child, fn, results)
+            filterNodesRec(child, fn, results)
 
     return results
 
@@ -655,7 +648,7 @@ def parseAlineaReference(tokens, i, parent):
         i += 4
     # le même alinéa
     elif tokens[i].lower() in [u'le'] and tokens[i + 2] == u'même' and tokens[i + 4] == u'alinéa':
-        alineaRefs = searchNode(
+        alineaRefs = filterNodes(
             getRoot(parent),
             lambda n: 'type' in n and n['type'] == 'alinea-reference'
         )
@@ -725,6 +718,29 @@ def fixIncompleteReferences(parent, node):
                 # copy all the child of the fully qualified reference node
                 for c in node['children']:
                     pushNode(child, c.copy())
+
+def copyNode(node):
+    c = node.copy()
+    children = node['children']
+    node['children'] = []
+    for child in children:
+        pushNode(node, copyNode(child))
+    return c
+
+def parseBackReference(tokens, i, parent):
+    if i >= len(tokens):
+        return i
+    if tokens[i] == u'Il':
+        refs = filterNodes(
+            getRoot(parent),
+            lambda n: 'type' in n and n['type'].endswith('-reference')
+        )
+        for j in reversed(range(0, len(refs))):
+            if getNodeDepth(refs[j]) <= getNodeDepth(parent):
+                pushNode(parent, copyNode(refs[j]))
+                break
+        i += 2
+    return i
 
 def parseIncompleteReference(tokens, i, parent):
     if i >= len(tokens):
@@ -910,8 +926,7 @@ def parseEdit(tokens, i, parent):
     r = i
     i = parseForEach(parseReference, tokens, i, node)
     # if we did not parse a reference
-    # "Il" (with a capital "i") is considered to be a back-reference
-    if len(node['children']) == 0 and (i >= len(tokens) or tokens[i] != u'Il'):
+    if len(node['children']) == 0:
         removeNode(parent, node)
         debug(node, tokens, i, 'parseEdit none')
         return i
@@ -1027,7 +1042,7 @@ def parseCodeReference(tokens, i, parent):
         i = parseCodeName(tokens, i + 2, node)
     # le même code
     elif tokens[i].lower() == 'le' and tokens[i + 2] == u'même' and tokens[i + 4] == 'code':
-        codeRefs = searchNode(
+        codeRefs = filterNodes(
             getRoot(parent),
             lambda n: 'type' in n and n['type'] == 'code-reference'
         )
@@ -1087,6 +1102,11 @@ def parseReference(tokens, i, parent):
     i = j
 
     j = parseArticlePartReference(tokens, i, parent)
+    if j != i:
+        return j
+    i = j
+
+    j = parseBackReference(tokens, i, parent)
     if j != i:
         return j
     i = j
@@ -1205,7 +1225,6 @@ def parseArticleHeader3(tokens, i, parent):
 
     return i
 
-
 def parseForEach(fn, tokens, i, parent):
     test = fn(tokens, i, parent)
 
@@ -1265,22 +1284,61 @@ def sortReferences(node):
         'sentence-reference',
         'words-reference'
     ]
-    root_refs = searchNode(node, lambda n: 'type' in n and n['type'] in ref_types and 'parent' in n and n['parent']['type'] not in ref_types)
+    root_refs = filterNodes(node, lambda n: 'type' in n and n['type'] in ref_types and 'parent' in n and n['parent']['type'] not in ref_types)
     for root_ref in root_refs:
         root_ref_parent = root_ref['parent']
-        refs = searchNode(root_ref, lambda n: 'type' in n and n['type'] in ref_types)
+        refs = filterNodes(root_ref, lambda n: 'type' in n and n['type'] in ref_types)
         sorted_refs = sorted(refs, key=lambda r: ref_types.index(r['type']))
-        for i in range(0, len(sorted_refs)):
-            sorted_ref = sorted_refs[i]
-            removeNode(sorted_ref['parent'], sorted_ref)
+        filtered_refs = [sorted_refs[0]]
+        for ref in sorted_refs:
+            removeNode(ref['parent'], ref)
+            if ref['type'] != filtered_refs[-1]['type']:
+                filtered_refs.append(ref)
+        for i in range(0, len(filtered_refs)):
+            ref = filtered_refs[i]
             if i == 0:
-                pushNode(root_ref_parent, sorted_ref)
+                pushNode(root_ref_parent, ref)
             else:
-                pushNode(sorted_refs[i - 1], sorted_ref)
+                pushNode(filtered_refs[i - 1], ref)
+
+def resolveFullyQualifiedReferences(node):
+    resolveFullyQualifiedReferences_rec(node, [])
+
+def resolveFullyQualifiedReferences_rec(node, ctx):
+    ref_types = [
+        'code-reference',
+        'book-reference',
+        'title-reference',
+        'article-reference',
+        'header1-reference',
+        'header2-reference',
+        'header3-reference',
+        'alinea-reference',
+        'sentence-reference',
+        'words-reference'
+    ]
+    if 'type' in node and node['type'] not in ref_types and len(node['children']) > 0 and node['children'][0]['type'] == 'edit' and node['children'][0]['editType'] == 'edit':
+        context = node['children'][0]['children'][0]
+        removeNode(node, node['children'][0])
+        ctx.append([deleteParent(ctx_node.copy()) for ctx_node in filterNodes(context, lambda x: x['type'] in ref_types)])
+        for child in node['children']:
+            resolveFullyQualifiedReferences_rec(child, ctx)
+        ctx.pop()
+    elif len(ctx) > 0 and 'type' in node and node['type'] in ref_types and node['parent']['type'] not in ref_types:
+        n = [item.copy() for sublist in ctx for item in sublist]
+        for i in range(1, len(n)):
+            unshiftNode(n[i - 1], n[i])
+        unshiftNode(node['parent'], n[0])
+        removeNode(node['parent'], node)
+        unshiftNode(n[len(n) - 1], node)
+    else:
+        for child in node['children']:
+            resolveFullyQualifiedReferences_rec(child, ctx)
 
 def handleData(data):
     ast = parseJSONData(json.loads(data))
 
+    resolveFullyQualifiedReferences(ast)
     sortReferences(ast)
     deleteParent(ast)
     removeEmptyChildrenList(ast)
