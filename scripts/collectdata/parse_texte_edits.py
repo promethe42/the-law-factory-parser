@@ -314,6 +314,8 @@ def parseWordsDefinition(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseWordsDefinition')
+    j = i
+    i = parsePosition(tokens, i, node)
     # le mot
     # les mots
     # des mots
@@ -324,7 +326,7 @@ def parseWordsDefinition(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseWordsDefinition none')
         removeNode(parent, node)
-        return i
+        return j
     debug(node, tokens, i, 'parseWordsDefinition end')
     return i
 
@@ -483,6 +485,9 @@ def parseTitleReference(tokens, i, parent):
 
     debug(node, tokens, i, 'parseTitleReference')
 
+    j = i
+    i = parsePosition(tokens, i, node)
+
     # le titre {order}
     if tokens[i].lower() == u'le' and tokens[i + 2] == u'titre' and isRomanNumber(tokens[i + 4]):
         node['order'] = parseRomanNumber(tokens[i + 4])
@@ -491,7 +496,7 @@ def parseTitleReference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseTitleReference none')
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseReference(tokens, i, node)
 
@@ -537,6 +542,9 @@ def parseBookReference(tokens, i, parent):
 
     debug(node, tokens, i, 'parseBookReference')
 
+    j = i
+    i = parsePosition(tokens, i, node)
+
     # le titre {order}
     if tokens[i].lower() == u'du' and tokens[i + 2] == u'livre' and isRomanNumber(tokens[i + 4]):
         node['order'] = parseRomanNumber(tokens[i + 4])
@@ -544,7 +552,7 @@ def parseBookReference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseBookReference none')
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseReference(tokens, i, node)
 
@@ -564,6 +572,8 @@ def parseArticleReference(tokens, i, parent):
 
     debug(node, tokens, i, 'parseArticleReference')
 
+    j = i
+    i = parsePosition(tokens, i, node)
     # de l'article
     if tokens[i].lower() == u'de' and tokens[i + 2] == u'l' and tokens[i + 4] == 'article':
         i += 6
@@ -576,9 +586,11 @@ def parseArticleReference(tokens, i, parent):
         i += 2
     else:
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseArticleId(tokens, i, node)
+
+    # i = parseArticlePartReference(tokens, i, node)
 
     # de la loi
     # de l'ordonnance
@@ -590,36 +602,35 @@ def parseArticleReference(tokens, i, parent):
 
     return i
 
-def parsePosition(tokens, i, parent):
+def parsePosition(tokens, i, node):
     if i >= len(tokens):
         return i
 
+    j = i
     i = skipToNextWord(tokens, i)
 
     # après
     if tokens[i].lower() == u'après':
-        parent['position'] = 'after'
+        node['position'] = 'after'
         i += 2
     # avant
     elif tokens[i].lower() == u'avant':
-        parent['position'] = 'before'
+        node['position'] = 'before'
         i += 2
     # au début
     elif tokens[i].lower() == u'au' and tokens[i + 2] == u'début':
-        parent['position'] = 'beginning'
+        node['position'] = 'beginning'
         i += 4
     # la fin du {article}
     elif tokens[i] == u'la' and tokens[i + 2] == u'fin':
-        parent['position'] = 'end'
+        node['position'] = 'end'
         i += 4
     # à la fin du {article}
     elif tokens[i].lower() == u'à' and tokens[i + 2] == u'la' and tokens[i + 4] == u'fin':
-        parent['position'] = 'end'
+        node['position'] = 'end'
         i += 6
     else:
-        return i
-
-    i = parseReference(tokens, i, parent)
+        return j
 
     return i
 
@@ -631,6 +642,8 @@ def parseAlineaReference(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseAlineaReference')
+    j = i
+    i = parsePosition(tokens, i, node)
     # le {order} alinéa
     # du {order} alinéa
     if tokens[i].lower() in [u'du', u'le', u'un'] and isNumberWord(tokens[i + 2]) and tokens[i + 4].startswith(u'alinéa'):
@@ -663,7 +676,7 @@ def parseAlineaReference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseAlineaReference none')
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseArticlePartReference(tokens, i, node)
     # i = parseQuote(tokens, i, node)
@@ -680,6 +693,8 @@ def parseSentenceReference(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseSentenceReference')
+    j = i
+    i = parsePosition(tokens, i, node)
     # une phrase
     # la phrase
     if tokens[i].lower() in [u'la', u'une'] and tokens[i + 2] == 'phrase':
@@ -699,7 +714,7 @@ def parseSentenceReference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseSentenceReference none')
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseArticlePartReference(tokens, i, node)
 
@@ -749,6 +764,8 @@ def parseIncompleteReference(tokens, i, parent):
         'type': 'incomplete-reference',
         'children': []
     })
+    j = i
+    i = parsePosition(tokens, i, node)
     if tokens[i].lower() == u'à' and tokens[i + 2] in [u'le', u'la'] and isNumberWord(tokens[i + 4]):
         node['order'] = wordToNumber(tokens[i + 4])
         i += 6
@@ -757,7 +774,7 @@ def parseIncompleteReference(tokens, i, parent):
         i += 4
     else:
         removeNode(parent, node)
-        return i
+        return j
 
     return i
 
@@ -769,6 +786,8 @@ def parseWordsReference(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseWordsReference')
+    j = i
+    i = parsePosition(tokens, i, node)
     # le mot
     # les mots
     # des mots
@@ -778,7 +797,7 @@ def parseWordsReference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseWordsReference none')
         removeNode(parent, node)
-        return i
+        return j
     debug(node, tokens, i, 'parseWordsReference end')
     return i
 
@@ -790,6 +809,8 @@ def parseHeader2Reference(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseHeader2Reference')
+    j = i
+    i = parsePosition(tokens, i, node)
     # le {order}° ({multiplicativeAdverb}) ({articlePartRef})
     # du {order}° ({multiplicativeAdverb}) ({articlePartRef})
     # au {order}° ({multiplicativeAdverb}) ({articlePartRef})
@@ -801,7 +822,7 @@ def parseHeader2Reference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseHeader2Reference none')
         removeNode(parent, node)
-        return i
+        return j
     # i = parseQuote(tokens, i, node)
     debug(node, tokens, i, 'parseHeader2Reference end')
     return i
@@ -814,6 +835,8 @@ def parseHeader1Reference(tokens, i, parent):
         'children': []
     })
     debug(node, tokens, i, 'parseHeader1Reference')
+    j = i
+    i = parsePosition(tokens, i, node)
     # le {romanPartNumber}
     # du {romanPartNumber}
     if tokens[i].lower() in [u'le', u'du'] and isRomanNumber(tokens[i + 2]):
@@ -822,7 +845,7 @@ def parseHeader1Reference(tokens, i, parent):
     else:
         debug(node, tokens, i, 'parseHeader1Reference end')
         removeNode(parent, node)
-        return i
+        return j
 
     i = parseArticlePartReference(tokens, i, node)
     # i = parseQuote(tokens, i, node)
@@ -835,12 +858,7 @@ def parseArticlePartReference(tokens, i, parent):
     if i >= len(tokens):
         return i
 
-    i = skipSpaces(tokens, i)
-
-    j = parsePosition(tokens, i, parent)
-    if j != i:
-        return j
-    i = j
+    i = skipToNextWord(tokens, i)
 
     j = parseAlineaReference(tokens, i, parent)
     if j != i:
@@ -1039,17 +1057,18 @@ def parseCodeReference(tokens, i, parent):
     # le code
     # du code
     elif tokens[i].lower() in [u'le', u'du'] and tokens[i + 2] == 'code':
+        print('foo')
         i = parseCodeName(tokens, i + 2, node)
     # le même code
     elif tokens[i].lower() == 'le' and tokens[i + 2] == u'même' and tokens[i + 4] == 'code':
+        removeNode(parent, node)
         codeRefs = filterNodes(
             getRoot(parent),
             lambda n: 'type' in n and n['type'] == 'code-reference'
         )
-        removeNode(parent, node)
+        print(parent)
         # the last one in order of traversal is the previous one in order of syntax
-        # don't forget the current node is in the list too => -2 instead of -1
-        node = codeRefs[-2].copy()
+        node = codeRefs[-1].copy()
         pushNode(parent, node)
         # skip "le même code "
         i += 6
@@ -1071,10 +1090,10 @@ def parseReference(tokens, i, parent):
     if i >= len(tokens):
         return i
 
-    j = parsePosition(tokens, i, parent)
-    if j != i:
-        return j
-    i = j
+    # j = parsePosition(tokens, i, parent)
+    # if j != i:
+    #     return j
+    # i = j
 
     j = parseLawReference(tokens, i, parent)
     if j != i:
