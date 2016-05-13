@@ -1057,7 +1057,6 @@ def parseCodeReference(tokens, i, parent):
     # le code
     # du code
     elif tokens[i].lower() in [u'le', u'du'] and tokens[i + 2] == 'code':
-        print('foo')
         i = parseCodeName(tokens, i + 2, node)
     # le même code
     elif tokens[i].lower() == 'le' and tokens[i + 2] == u'même' and tokens[i + 4] == 'code':
@@ -1066,7 +1065,6 @@ def parseCodeReference(tokens, i, parent):
             getRoot(parent),
             lambda n: 'type' in n and n['type'] == 'code-reference'
         )
-        print(parent)
         # the last one in order of traversal is the previous one in order of syntax
         node = codeRefs[-1].copy()
         pushNode(parent, node)
