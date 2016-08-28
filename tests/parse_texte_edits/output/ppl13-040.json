@@ -87,7 +87,7 @@
                           "words": "II. À compter du 1er janvier 2018, la mise sur le marché, la délivrance, l'utilisation et la détention des produits visés au premier alinéa de l'article L. 253-1 pour un usage non professionnel sont interdites."
                         }
                       ], 
-                      "order": 2, 
+                      "title": 2, 
                       "type": "header1"
                     }, 
                     {
@@ -132,18 +132,6 @@
                         {
                           "children": [
                             {
-                              "children": [
-                                {
-                                  "children": [
-                                    {
-                                      "type": "quote", 
-                                      "words": "à usage professionnel"
-                                    }
-                                  ], 
-                                  "position": "after", 
-                                  "type": "words-reference"
-                                }
-                              ], 
                               "order": 1, 
                               "type": "sentence-reference"
                             }
@@ -178,7 +166,7 @@
                       "words": "... ° Le fait de détenir en vue de la vente, d'offrir en vue de la vente ou de céder sous toute autre forme à titre gratuit ou onéreux, ainsi que le fait de vendre, de distribuer et d'effectuer d'autres formes de cession proprement dites d'un produit visé au premier alinéa de l'article L. 253-1 pour un usage non professionnel ;"
                     }
                   ], 
-                  "order": "...", 
+                  "title": "...", 
                   "type": "header2"
                 }, 
                 {

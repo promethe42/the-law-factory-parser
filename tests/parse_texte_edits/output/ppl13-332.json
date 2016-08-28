@@ -7,8 +7,13 @@
             {
               "children": [
                 {
-                  "type": "quote", 
-                  "words": "Sont également soumis aux mêmes taux de la taxe sur la valeur ajoutée les ventes, commissions et courtages portant sur les services de presse en ligne reconnus comme tels en application de l'article 1er de la loi n° 86-897 du 1er août 1986 portant réforme du régime juridique de la presse."
+                  "children": [
+                    {
+                      "type": "quote", 
+                      "words": "Sont également soumis aux mêmes taux de la taxe sur la valeur ajoutée les ventes, commissions et courtages portant sur les services de presse en ligne reconnus comme tels en application de l'article 1er de la loi n° 86-897 du 1er août 1986 portant réforme du régime juridique de la presse."
+                    }
+                  ], 
+                  "type": "words"
                 }, 
                 {
                   "children": [
