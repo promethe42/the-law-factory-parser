@@ -24,6 +24,7 @@ def get_compare_outputs_fn(description, input_filename, output_filename):
         out = out.decode('utf-8')
 
         output_data = codecs.open(output_filename, 'r', 'utf-8').read()
+        output_data = output_data.replace("\r\n", "\n")
         self.assertMultiLineEqual(out, output_data, description)
     return test
 
