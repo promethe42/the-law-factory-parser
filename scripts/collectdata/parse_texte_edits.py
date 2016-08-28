@@ -1358,7 +1358,6 @@ def parseJSONAmendement(data, node):
     text = text.replace(u'</p><p>', u'\n')
     text = re.sub(r'<[^>]*?>', ' ', text)
     text = data['sujet'] + ' '  + text
-    print(text)
 
     tokens = tokenize(text)
     parseForEach(parseArticleHeader1, tokens, 0, node)
