@@ -830,6 +830,7 @@ def parseWordsReference(tokens, i, parent):
     })
     debug(node, tokens, i, 'parseWordsReference')
     j = i
+    i = skipSpaces(tokens, i)
     i = parsePosition(tokens, i, node)
     # le mot
     # les mots
@@ -976,6 +977,7 @@ def parseQuote(tokens, i, parent):
 
     return i
 
+# Parse the verb to determine the corresponding action (one of 'add', 'delete', 'edit' or 'replace').
 def parseEdit(tokens, i, parent):
     if i >= len(tokens):
         return i
@@ -987,8 +989,8 @@ def parseEdit(tokens, i, parent):
     debug(node, tokens, i, 'parseEdit')
 
     r = i
-    i = parseForEach(parseReference, tokens, i, node)
-    # i = parseReferenceList(tokens, i, node)
+    # i = parseForEach(parseReference, tokens, i, node)
+    i = parseReferenceList(tokens, i, node)
     # if we did not parse a reference
 
     i = skipSpaces(tokens, i)
@@ -1073,7 +1075,11 @@ def parseEdit(tokens, i, parent):
         i = skipToEndOfLine(tokens, i)
         return i
 
-    # i = skipToEndOfLine(tokens, i)
+    # We've parsed pretty much everything we could handle. At this point,
+    # there should be no meaningful content. But their might be trailing
+    # spaces or ponctuation (ofent "." or ";"), so we skip to the end of
+    # the line.
+    i = skipToEndOfLine(tokens, i)
 
     debug(node, tokens, i, 'parseEdit end')
 
@@ -1106,6 +1112,9 @@ def parseCodeName(tokens, i, node):
     node['codeName'] = node['codeName'].strip()
     return i
 
+# Parse a reference to a specific or aforementioned code.
+# References to a specific code are specified by using the exact name of that code (cf parseCodeName).
+# References to an aforementioned code will be in the form of "le même code".
 def parseCodeReference(tokens, i, parent):
     if i >= len(tokens):
         return i
@@ -1148,14 +1157,20 @@ def parseCodeReference(tokens, i, parent):
 
     return i
 
+# Parse multiple references separated by comas or the "et" word.
+# All the parsed references will be siblings in parent['children'] and resolveFullyQualifiedReferences + sortReferences
+# will take care of reworking the tree to make sure each reference in the list is complete and consistent.
 def parseReferenceList(tokens, i, parent):
     if i >= len(tokens):
         return i
 
     i = parseReference(tokens, i, parent)
     # i = parseForEach(parseReference, tokens, i, parent)
-    if i + 2 < len(tokens) and tokens[i] == u',' and tokens[i + 2] in [u'à', u'au']:
+    i = skipSpaces(tokens, i)
+    if ((i + 2 < len(tokens) and tokens[i] == u',' and tokens[i + 2] in [u'à', u'au'])
+        or (i + 2 < len(tokens) and tokens[i] == u'et')):
         i = parseReferenceList(tokens, i + 2, parent)
+    i = skipSpaces(tokens, i)
 
     return i
 
@@ -1224,8 +1239,11 @@ def parseArticleHeader1(tokens, i, parent):
         removeNode(parent, node)
         node = parent
 
+    j = i
     i = parseEdit(tokens, i, node)
     i = parseForEach(parseArticleHeader2, tokens, i, node)
+    if i == j:
+        i = parseRawArticleContent(tokens, i, node)
 
     if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
@@ -1439,7 +1457,7 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
         removeNode(node['parent'], node)
         unshiftNode(n[len(n) - 1], node)
     # If we have multiple *-reference node in a single 'edit' node
-    elif 'type' in node and node['type'] == 'edit' and len(filterNodes(node, lambda x: x['type'] in ref_types and x['parent'] == node)) > 1:
+    elif 'type' in node and node['type'] == 'edit' and len(filterNodes(node, lambda x: x['type'] in ref_types and x['parent'] == node and len(filterNodes(node, lambda y: y['type'] == x['type'])) == 1)) > 1:
         local_ctx = [copyNode(item) for item in filterNodes(node, lambda x: x['type'] in ref_types)]
         for i in reversed(range(0, len(node['children']))):
             child = node['children'][i]
@@ -1451,6 +1469,13 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
     else:
         for child in node['children']:
             resolveFullyQualifiedReferences_rec(child, ctx)
+
+def getAncestors(node, fn = None):
+    ancestors = []
+    while node and fn(node):
+        ancestors.append(node)
+        node = node['parent']
+    return ancestors
 
 def removeEmptyChildrenList(root):
     if 'children' in root and len(root['children']) == 0:
