@@ -94,7 +94,7 @@ def get_mark_from_last(text, s, l="", sep="", force=False):
     res = []
     try:
         start = make_sta_reg(s)
-    except:
+    except Exception as e:
         print >> sys.stderr, 'ERROR', type(e), e, s.encode('utf-8'), l.encode('utf-8')
         exit()
     rich = re_mat_complex.match(s) or not re_mat_simple.match(s)
@@ -145,6 +145,7 @@ re_clean_virg = re.compile(r'\s*,\s*')
 re_suppr = re.compile(r'\W*suppr(ess|im)', re.I)
 re_confo = re.compile(r'\W*(conforme|non[\s\-]*modifi)', re.I)
 re_confo_with_txt = re.compile(r'\s*\(\s*(conforme|non[\s\-]*modifié)\s*\)\s*([\W]*\w+)', re.I)
+re_clean_subsec_space = re.compile(r'^("?[IVX0-9]{1,4}(\s+[a-z]+)?(\s+[A-Z]{1,4})?)\s*([\.°\-]+)\s*([^\s\)])', re.I)
 order = 1
 cursec = {'id': ''}
 done_titre = False
@@ -298,12 +299,14 @@ for l in f:
                 log("DEBUG: get back Art %s" % line['titre'])
                 alineas = oldstep[oldid][line['titre']]
         gd_text = []
+        oldid = 1 if grdoldarts else 0
         for j, text in enumerate(alineas):
             text = text.encode('utf-8')
-            if "(Non modifi" in text and not line['titre'] in oldstep[0]:
+            if "(Non modifi" in text and not line['titre'] in oldstep[oldid]:
                 sys.stderr.write("WARNING: found repeated article missing %s from previous step %s: %s\n" % (line['titre'], FILE, text))
             elif re_confo_with_txt.search(text):
                 text = re_confo_with_txt.sub(r' \2', text)
+                text = re_clean_subsec_space.sub(r'\1\4 \5', text)
                 gd_text.append(text)
             elif "(Non modifi" in text:
                 part = re.split("\s*([\.°\-]+\s*)+\s*\(Non", text)
@@ -318,10 +321,10 @@ for l in f:
                     if " à " in todo:
                         start = re.split(" à ", todo)[0]
                         end = re.split(" à ", todo)[1]
-                        piece.extend(get_mark_from_last(oldstep[0][line['titre']], start, end, sep=part[1:]))
+                        piece.extend(get_mark_from_last(oldstep[oldid][line['titre']], start, end, sep=part[1:]))
     # Extract set of non-modified subsections of articles from previous version.
                     elif todo:
-                        piece.extend(get_mark_from_last(oldstep[0][line['titre']], todo, sep=part[1:]))
+                        piece.extend(get_mark_from_last(oldstep[oldid][line['titre']], todo, sep=part[1:]))
                 gd_text.extend(piece)
             else:
                 gd_text.append(text.decode('utf-8'))

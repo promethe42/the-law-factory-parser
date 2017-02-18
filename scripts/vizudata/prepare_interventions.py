@@ -15,7 +15,7 @@ def clean_orga(orga):
     return orga
 
 def init_section(dic, key, inter, order):
-    if key == 'seance_titre' and not inter['section']:
+    if inter[key] and inter['seance_lieu'] != u'Hémicycle':
         inter[key] = clean_orga(inter['seance_lieu']) + " <br/> " + inter[key]
     if inter[key] not in dic:
         dic[inter[key]] = {
@@ -90,15 +90,14 @@ for step in procedure['steps']:
     warndone = []
     for interv_file in step['intervention_files']:
         seance = open_json(os.path.join(context.sourcedir, 'procedure', step['intervention_directory']), "%s.json" % interv_file)['seance']
-        has_tag_loi = False
+        has_tag_loi = 0
         if id_laststep:
             for i in seance:
                 if {"loi": id_laststep} in i['intervention']['lois']:
-                    has_tag_loi = True
-                    break
+                    has_tag_loi += 1
         for i in seance:
             del(i['intervention']['contenu'])
-            if has_tag_loi and {"loi": id_laststep} not in i['intervention']['lois']:
+            if has_tag_loi > 2 and {"loi": id_laststep} not in i['intervention']['lois']:
                 if context.DEBUG:
                     print >> sys.stderr, "SKIPPING interv " + i['intervention']['id'] + " with missing tag loi"
                 continue
