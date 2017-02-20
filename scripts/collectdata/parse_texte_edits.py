@@ -92,7 +92,7 @@ def skipToToken(tokens, i, token):
     return skipTokens(tokens, i, lambda t: t != token)
 
 def skipToEndOfLine(tokens, i):
-    if i > 0 and tokens[i - 1] == TOKEN_NEW_LINE:
+    if i > 0 and i < len(tokens) and tokens[i - 1] == TOKEN_NEW_LINE:
         return i
 
     return skipToToken(tokens, i, TOKEN_NEW_LINE)
@@ -220,6 +220,8 @@ def parseLawReference(tokens, i, parent):
     if i >= len(tokens):
         return i
 
+    j = i
+
     node = createNode(parent, {
         'type': 'law-reference',
         'lawId': '',
@@ -246,6 +248,12 @@ def parseLawReference(tokens, i, parent):
         i += 2
 
     i = skipToToken(tokens, i, u'n°') + 1
+    # If we didn't find the "n°" token, the reference is incomplete and we forget about it.
+    # FIXME: we might have to handle the "la même ordonnance" or "la même loi" incomplete reference cases.
+    if i >= len(tokens):
+        removeNode(parent, node)
+        return j
+
     i = skipSpaces(tokens, i)
     node['lawId'] = tokens[i]
     # skip {lawId} and the following space
@@ -343,6 +351,9 @@ def parseWordsDefinition(tokens, i, parent):
     elif tokens[i] == TOKEN_DOUBLE_QUOTE_OPEN:
         i = parseForEach(parseQuote, tokens, i, node)
         i = skipSpaces(tokens, i)
+    elif tokens[i] == u'la' and tokens[i + 2] == u'référence':
+        i = skipToQuoteStart(tokens, i)
+        i = parseQuote(tokens, i, node)
     else:
         debug(node, tokens, i, 'parseWordsDefinition none')
         removeNode(parent, node)
@@ -760,7 +771,8 @@ def parseSentenceReference(tokens, i, parent):
         node['order'] = wordToNumber(tokens[i + 2])
         i += 6
     # à la {partNumber} phrase
-    elif tokens[i].lower() == u'à' and tokens[i + 2].lower() == u'la' and isNumberWord(tokens[i + 4]) and tokens[i + 6] == u'phrase':
+    # À la {partNumber} phrase
+    elif (tokens[i].lower() == u'à' or tokens[i].lower() == u'À') and tokens[i + 2].lower() == u'la' and isNumberWord(tokens[i + 4]) and tokens[i + 6] == u'phrase':
         node['order'] = wordToNumber(tokens[i + 4])
         i += 8
     else:
@@ -830,7 +842,7 @@ def parseWordsReference(tokens, i, parent):
     })
     debug(node, tokens, i, 'parseWordsReference')
     j = i
-    i = skipSpaces(tokens, i)
+    i = skipToNextWord(tokens, i)
     i = parsePosition(tokens, i, node)
     # le mot
     # les mots
@@ -841,6 +853,10 @@ def parseWordsReference(tokens, i, parent):
     # le nombre
     # le chiffre
     elif tokens[i].lower() in [u'le'] and tokens[i + 2] in [u'nombre', u'chiffre']:
+        i = skipToQuoteStart(tokens, i)
+        i = parseQuote(tokens, i, node)
+    # la référence
+    elif tokens[i].lower() in [u'la'] and tokens[i + 2] == u'référence':
         i = skipToQuoteStart(tokens, i)
         i = parseQuote(tokens, i, node)
     else:
