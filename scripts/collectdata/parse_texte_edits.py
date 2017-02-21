@@ -1413,6 +1413,7 @@ def sortReferences(node):
     ref_types = [
         'code-reference',
         'book-reference',
+        'law-reference',
         'title-reference',
         'article-reference',
         'header1-reference',
@@ -1447,6 +1448,7 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
     ref_types = [
         'code-reference',
         'book-reference',
+        'law-reference',
         'title-reference',
         'article-reference',
         'header1-reference',
