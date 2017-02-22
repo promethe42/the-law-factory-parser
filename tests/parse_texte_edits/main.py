@@ -6,10 +6,29 @@ import glob
 import os
 import subprocess
 import codecs
+import difflib
+
+from colorama import init, Fore
+
+init()
 
 # http://eli.thegreenplace.net/2014/04/02/dynamically-generating-python-test-cases
 class TestTexteEditsParser(unittest.TestCase):
     longMessage = True
+
+def pretty_diff_output(lines):
+    out = ''
+
+    for line in lines:
+        if line[0] == '-':
+            out += Fore.RED + line
+        elif line[0] == '+':
+            out += Fore.GREEN + line
+        else:
+            out += Fore.RESET + line
+        out = out + '\n'
+
+    return out
 
 def get_compare_outputs_fn(description, input_filename, output_filename):
     def test(self):
@@ -25,7 +44,10 @@ def get_compare_outputs_fn(description, input_filename, output_filename):
 
         output_data = codecs.open(output_filename, 'r', 'utf-8').read()
         output_data = output_data.replace("\r\n", "\n")
-        self.assertMultiLineEqual(out, output_data, description)
+
+        diff = difflib.unified_diff(output_data.splitlines(), out.splitlines())
+        diff_lines = list(diff)
+        self.assertEqual(len(diff_lines), 0, description + '\n' + pretty_diff_output(diff_lines))
     return test
 
 if __name__ == '__main__':
