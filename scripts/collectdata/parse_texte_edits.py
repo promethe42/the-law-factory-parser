@@ -868,6 +868,10 @@ def parseSentenceReference(tokens, i, parent):
     elif (tokens[i] == u'à' or tokens[i] == u'À') and tokens[i + 2].lower() == u'la' and isNumberWord(tokens[i + 4]) and tokens[i + 6] == u'phrase':
         node['order'] = wordToNumber(tokens[i + 4])
         i += 8
+    # la dernière phrase
+    elif tokens[i].lower() == u'la' and tokens[i + 2] == u'dernière' and tokens[i + 4] == u'phrase':
+        node['order'] = -1
+        i += 6
     else:
         debug(parent, tokens, i, 'parseSentenceReference none')
         removeNode(parent, node)
