@@ -127,7 +127,7 @@ def parseRomanNumber(n):
     return res
 
 def isRomanNumber(token):
-    return re.compile(r"[IVXCLDM]+(er)?", re.I).match(token)
+    return re.compile(r"[IVXCLDM]+(er)?").match(token)
 
 def isNumberWord(word):
     return wordToNumber(word) >= 0
@@ -165,12 +165,18 @@ def pushNode(parent, node):
     parent['children'].append(node)
 
 def createNode(parent, node):
-    pushNode(parent, node)
+    if parent:
+        pushNode(parent, node)
     node['children'] = []
 
     return node
 
 def removeNode(parent, node):
+    if node not in parent['children']:
+        raise Exception('invalid parent')
+    if 'parent' not in node or node['parent'] != parent:
+        raise Exception('parent node does not match')
+
     parent['children'].remove(node)
     del node['parent']
 
@@ -228,7 +234,7 @@ def parseLawReference(tokens, i, parent):
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseLawReference')
+    debug(parent, tokens, i, 'parseLawReference')
 
     # de l'ordonnance
     # l'ordonnance
@@ -264,7 +270,7 @@ def parseLawReference(tokens, i, parent):
         # skip {lawDate} and the following space
         i += 7
 
-    debug(node, tokens, i, 'parseLawReference end')
+    debug(parent, tokens, i, 'parseLawReference end')
 
     return i
 
@@ -313,6 +319,11 @@ def parseDefinition(tokens, i, parent):
         return j
     i = j
 
+    j = parseSentenceDefinition(tokens, i, parent)
+    if j != i:
+        return j
+    i = j
+
     j = parseWordsDefinition(tokens, i, parent)
     if j != i:
         return j
@@ -325,14 +336,50 @@ def parseDefinition(tokens, i, parent):
 
     return i
 
+def parseSentenceDefinition(tokens, i, parent):
+    if i >= len(tokens):
+        return i
+
+    debug(parent, tokens, i, 'parseSentenceDefinition')
+    j = i
+
+    # {count} phrases
+    if isNumberWord(tokens[i]) and tokens[i + 2].startswith(u'phrase'):
+        count = wordToNumber(tokens[i])
+        i += 4
+        # est rédigé
+        # est ainsi rédigé
+        if (i + 2 < len(tokens) and tokens[i + 2].startswith(u'rédigé')
+            or (i + 4 < len(tokens) and tokens[i + 4].startswith(u'rédigé'))):
+            # we expect {count} definitions => {count} quotes
+            # but they don't always match, so for now we parse all of the available contents
+            # FIXME: issue a warning because the expected count doesn't match?
+            i = parseForEach(
+                parseQuote,
+                tokens,
+                i,
+                lambda : createNode(parent, {'type': 'sentence', 'children': []})
+            )
+        else:
+            createNode(parent, {'type': 'sentence', 'count': count})
+    else:
+        debug(parent, tokens, i, 'parseSentenceDefinition none')
+        return j
+
+    debug(parent, tokens, i, 'parseSentenceDefinition end')
+
+    return i
+
 def parseWordsDefinition(tokens, i, parent):
     if i >= len(tokens):
         return i
+
     node = createNode(parent, {
         'type': 'words',
         'children': []
     })
-    debug(node, tokens, i, 'parseWordsDefinition')
+    debug(parent, tokens, i, 'parseWordsDefinition')
+
     j = i
     i = parsePosition(tokens, i, node)
     # le mot
@@ -355,10 +402,10 @@ def parseWordsDefinition(tokens, i, parent):
         i = skipToQuoteStart(tokens, i)
         i = parseQuote(tokens, i, node)
     else:
-        debug(node, tokens, i, 'parseWordsDefinition none')
+        debug(parent, tokens, i, 'parseWordsDefinition none')
         removeNode(parent, node)
         return j
-    debug(node, tokens, i, 'parseWordsDefinition end')
+    debug(parent, tokens, i, 'parseWordsDefinition end')
     return i
 
 def parseArticleDefinition(tokens, i, parent):
@@ -369,41 +416,56 @@ def parseArticleDefinition(tokens, i, parent):
         'type': 'article',
         'children': [],
     })
-    debug(node, tokens, i, 'parseArticleDefinition')
+    debug(parent, tokens, i, 'parseArticleDefinition')
+
     if tokens[i] == u'un' and tokens[i + 2] == u'article':
         i += 4
+    elif tokens[i] == u'l' and tokens[i + 2] == u'article':
+        i += 4
     else:
-        debug(node, tokens, i, 'parseArticleDefinition none')
+        debug(parent, tokens, i, 'parseArticleDefinition none')
         removeNode(parent, node)
         return i
 
     i = parseArticleId(tokens, i, node)
     i = parseForEach(parseQuote, tokens, i, node)
 
-    debug(node, tokens, i, 'parseArticleDefinition end')
+    debug(parent, tokens, i, 'parseArticleDefinition end')
 
     return i
 
 def parseAlineaDefinition(tokens, i, parent):
     if i >= len(tokens):
         return i
-    node = createNode(parent, {
-        'type': 'alinea',
-        'children': [],
-    })
-    debug(node, tokens, i, 'parseAlineaDefinition')
+
+    debug(parent, tokens, i, 'parseAlineaDefinition')
 
     # {count} alinéa(s)
     if isNumberWord(tokens[i]) and tokens[i + 2].startswith(u'alinéa'):
+        count = wordToNumber(tokens[i])
         i += 4
+        # est rédigé
+        # est ainsi rédigé
+        if (i + 2 < len(tokens) and tokens[i + 2].startswith(u'rédigé')
+            or (i + 4 < len(tokens) and tokens[i + 4].startswith(u'rédigé'))):
+            # we expect {count} definitions => {count} quotes
+            # but they don't always match, so for now we parse all of the available contents
+            # FIXME: issue a warning because the expected count doesn't match?
+            i = parseForEach(
+                parseQuote,
+                tokens,
+                i,
+                lambda: createNode(parent, {'type': 'alinea', 'children': []})
+            )
+        else:
+            createNode(parent, {'type': 'alinea', 'count': count})
     else:
-        debug(node, tokens, i, 'parseAlineaDefinition none')
-        removeNode(parent, node)
+        debug(parent, tokens, i, 'parseAlineaDefinition none')
         return i
 
-    i = parseForEach(parseQuote, tokens, i, node)
+    # i = parseForEach(parseQuote, tokens, i, node)
 
-    debug(node, tokens, i, 'parseAlineaDefinition end')
+    debug(parent, tokens, i, 'parseAlineaDefinition end')
 
     return i
 
@@ -414,11 +476,11 @@ def parseMentionDefinition(tokens, i, parent):
         'type': 'mention',
         'children': []
     })
-    debug(node, tokens, i, 'parseMentionDefinition')
+    debug(parent, tokens, i, 'parseMentionDefinition')
     if tokens[i].lower() == u'la' and tokens[i + 2] == u'mention':
         i += 4
     else:
-        debug(node, tokens, i, 'parseMentionDefinition none')
+        debug(parent, tokens, i, 'parseMentionDefinition none')
         removeNode(parent, node)
         return i
     # :
@@ -426,7 +488,7 @@ def parseMentionDefinition(tokens, i, parent):
         i = skipToQuoteStart(tokens, i)
         i = parseForEach(parseQuote, tokens, i, node)
 
-    debug(node, tokens, i, 'parseMentionDefinition end')
+    debug(parent, tokens, i, 'parseMentionDefinition end')
 
     return i
 
@@ -437,13 +499,13 @@ def parseHeader1Definition(tokens, i, parent):
         'type': 'header1',
         'children': []
     })
-    debug(node, tokens, i, 'parseHeader1Definition')
+    debug(parent, tokens, i, 'parseHeader1Definition')
     # un {romanPartNumber}
     if tokens[i].lower() == u'un' and isRomanNumber(tokens[i + 2]):
         node['title'] = parseRomanNumber(tokens[i + 2])
         i += 4
     else:
-        debug(node, tokens, i, 'parseHeader1Definition end')
+        debug(parent, tokens, i, 'parseHeader1Definition end')
         removeNode(parent, node)
         return i
 
@@ -454,27 +516,51 @@ def parseHeader1Definition(tokens, i, parent):
 def parseHeader2Definition(tokens, i, parent):
     if i >= len(tokens):
         return i
-    node = createNode(parent, {
-        'type': 'header2',
-        'children': []
-    })
-    debug(node, tokens, i, 'parseHeader2Definition')
+
+    debug(parent, tokens, i, 'parseHeader2Definition')
+
     # un ... ° ({articlePartRef})
     if tokens[i].lower() == u'un' and ''.join(tokens[i + 2:i + 5]) == u'...' and tokens[i + 6] == u'°':
-        node['title'] = '...'
+        node = createNode(parent, {
+            'type': 'header2',
+            'children': []
+        })
+        # FIXME: should we simply ignore the 'order' field all together?
+        node['order'] = '...'
         i += 8
-    # un {order}° ({multiplicativeAdverb}) ({articlePartRef})
+        i = parseQuote(tokens, i, node)
+    # un {order}° ({orderLetter}) ({multiplicativeAdverb}) ({articlePartRef})
     elif tokens[i].lower() == u'un' and re.compile(u'\d+°').match(tokens[i + 2]):
-        node['title'] = parseInt(tokens[i + 2])
+        node = createNode(parent, {
+            'type': 'header2',
+            'children': []
+        })
+        node['order'] = parseInt(tokens[i + 2])
         i += 4
+        if re.compile(u'[A-Z]').match(tokens[i]):
+            node['subOrder'] = tokens[i]
+            i += 2
         i = parseMultiplicativeAdverb(tokens, i, node)
         i = parseArticlePartReference(tokens, i, node)
+        i = parseQuote(tokens, i, node)
+    # des {start}° à {end}°
+    elif (tokens[i].lower() == u'des' and re.compile(u'\d+°').match(tokens[i + 2])
+        and tokens[i + 4] == u'à' and re.compile(u'\d+°').match(tokens[i + 6])):
+        start = parseInt(tokens[i + 2])
+        end = parseInt(tokens[i + 6])
+        i += 8
+        # ainsi rédigés
+        if (i + 2 < len(tokens) and tokens[i + 2].startswith(u'rédigé')
+            or (i + 4 < len(tokens) and tokens[i + 4].startswith(u'rédigé'))):
+            i = parseForEach(
+                parseQuote,
+                tokens,
+                i,
+                lambda : createNode(parent, {'type': 'header2', 'children': []})
+            )
     else:
-        debug(node, tokens, i, 'parseHeader2Definition end')
-        removeNode(parent, node)
+        debug(parent, tokens, i, 'parseHeader2Definition end')
         return i
-
-    i = parseQuote(tokens, i, node)
 
     return i
 
@@ -517,7 +603,7 @@ def parseTitleReference(tokens, i, parent):
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseTitleReference')
+    debug(parent, tokens, i, 'parseTitleReference')
 
     j = i
     i = parsePosition(tokens, i, node)
@@ -528,13 +614,13 @@ def parseTitleReference(tokens, i, parent):
         i += 6
         i = parseMultiplicativeAdverb(tokens, i, node)
     else:
-        debug(node, tokens, i, 'parseTitleReference none')
+        debug(parent, tokens, i, 'parseTitleReference none')
         removeNode(parent, node)
         return j
 
     i = parseReference(tokens, i, node)
 
-    debug(node, tokens, i, 'parseTitleReference end')
+    debug(parent, tokens, i, 'parseTitleReference end')
 
     return i
 
@@ -547,7 +633,7 @@ def parseTitleDefinition(tokens, i, parent):
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseTitleDefinition')
+    debug(parent, tokens, i, 'parseTitleDefinition')
 
     # un titre {order}
     if tokens[i].lower() == u'un' and tokens[i + 2] == u'titre' and isRomanNumber(tokens[i + 4]):
@@ -555,13 +641,13 @@ def parseTitleDefinition(tokens, i, parent):
         i += 6
         i = parseMultiplicativeAdverb(tokens, i, node)
     else:
-        debug(node, tokens, i, 'parseTitleDefinition none')
+        debug(parent, tokens, i, 'parseTitleDefinition none')
         removeNode(parent, node)
         return i
 
     i = parseForEach(parseQuote, tokens, i, node)
 
-    debug(node, tokens, i, 'parseTitleDefinition end')
+    debug(parent, tokens, i, 'parseTitleDefinition end')
 
     return i
 
@@ -574,7 +660,7 @@ def parseBookReference(tokens, i, parent):
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseBookReference')
+    debug(parent, tokens, i, 'parseBookReference')
 
     j = i
     i = parsePosition(tokens, i, node)
@@ -584,13 +670,13 @@ def parseBookReference(tokens, i, parent):
         node['order'] = parseRomanNumber(tokens[i + 4])
         i += 6
     else:
-        debug(node, tokens, i, 'parseBookReference none')
+        debug(parent, tokens, i, 'parseBookReference none')
         removeNode(parent, node)
         return j
 
     i = parseReference(tokens, i, node)
 
-    debug(node, tokens, i, 'parseBookReference end')
+    debug(parent, tokens, i, 'parseBookReference end')
 
     return i
 
@@ -603,7 +689,7 @@ def parseArticleReference(tokens, i, parent):
         'id': ''
     })
 
-    debug(node, tokens, i, 'parseArticleReference')
+    debug(parent, tokens, i, 'parseArticleReference')
 
     j = i
     i = parsePosition(tokens, i, node)
@@ -648,7 +734,7 @@ def parseArticleReference(tokens, i, parent):
 
     # i = parseQuote(tokens, i, node)
 
-    debug(node, tokens, i, 'parseArticleReference end')
+    debug(parent, tokens, i, 'parseArticleReference end')
 
     return i
 
@@ -691,7 +777,8 @@ def parseAlineaReference(tokens, i, parent):
         'type': 'alinea-reference',
         'children': []
     })
-    debug(node, tokens, i, 'parseAlineaReference')
+    debug(parent, tokens, i, 'parseAlineaReference')
+
     j = i
     i = parsePosition(tokens, i, node)
     # le {order} alinéa
@@ -732,30 +819,36 @@ def parseAlineaReference(tokens, i, parent):
     elif tokens[i].lower() == u'à' and tokens[i + 4] == u'avant' and tokens[i + 6] == u'dernier' and tokens[i + 8] == u'alinéa':
         node['order'] = -2
         i += 10
+    # l'avant-dernier alinéa
+    elif tokens[i].lower() == u'l' and tokens[i + 2] == u'avant-dernier' and tokens[i + 4] == u'alinéa':
+        node['order'] = -2
+        i += 6
     # alinéa {order}
     elif tokens[i].lower() == u'alinéa' and isNumber(tokens[i + 2]):
         node['order'] = parseInt(tokens[i + 2])
         i += 4
     else:
-        debug(node, tokens, i, 'parseAlineaReference none')
+        debug(parent, tokens, i, 'parseAlineaReference none')
         removeNode(parent, node)
         return j
 
     i = parseArticlePartReference(tokens, i, node)
     # i = parseQuote(tokens, i, node)
 
-    debug(node, tokens, i, 'parseAlineaReference end')
+    debug(parent, tokens, i, 'parseAlineaReference end')
 
     return i
 
 def parseSentenceReference(tokens, i, parent):
     if i >= len(tokens):
         return i
+
     node = createNode(parent, {
         'type': 'sentence-reference',
         'children': []
     })
-    debug(node, tokens, i, 'parseSentenceReference')
+    debug(parent, tokens, i, 'parseSentenceReference')
+
     j = i
     i = parsePosition(tokens, i, node)
     # une phrase
@@ -772,17 +865,17 @@ def parseSentenceReference(tokens, i, parent):
         i += 6
     # à la {partNumber} phrase
     # À la {partNumber} phrase
-    elif (tokens[i].lower() == u'à' or tokens[i].lower() == u'À') and tokens[i + 2].lower() == u'la' and isNumberWord(tokens[i + 4]) and tokens[i + 6] == u'phrase':
+    elif (tokens[i] == u'à' or tokens[i] == u'À') and tokens[i + 2].lower() == u'la' and isNumberWord(tokens[i + 4]) and tokens[i + 6] == u'phrase':
         node['order'] = wordToNumber(tokens[i + 4])
         i += 8
     else:
-        debug(node, tokens, i, 'parseSentenceReference none')
+        debug(parent, tokens, i, 'parseSentenceReference none')
         removeNode(parent, node)
         return j
 
     i = parseArticlePartReference(tokens, i, node)
 
-    debug(node, tokens, i, 'parseSentenceReference end')
+    debug(parent, tokens, i, 'parseSentenceReference end')
 
     fixIncompleteReferences(parent, node)
 
@@ -828,7 +921,7 @@ def parseIncompleteReference(tokens, i, parent):
     elif tokens[i].lower() in [u'le', u'la'] and isNumberWord(tokens[i + 2]):
         node['order'] = wordToNumber(tokens[i + 2])
         i += 4
-    else:
+    elif j == i:
         removeNode(parent, node)
         return j
 
@@ -840,7 +933,7 @@ def parseWordsReference(tokens, i, parent):
     node = createNode(parent, {
         'type': 'words-reference'
     })
-    debug(node, tokens, i, 'parseWordsReference')
+    debug(parent, tokens, i, 'parseWordsReference')
     j = i
     i = skipToNextWord(tokens, i)
     i = parsePosition(tokens, i, node)
@@ -860,21 +953,23 @@ def parseWordsReference(tokens, i, parent):
         i = skipToQuoteStart(tokens, i)
         i = parseQuote(tokens, i, node)
     else:
-        debug(node, tokens, i, 'parseWordsReference none')
+        debug(parent, tokens, i, 'parseWordsReference none')
         removeNode(parent, node)
         return j
-    debug(node, tokens, i, 'parseWordsReference end')
+    debug(parent, tokens, i, 'parseWordsReference end')
     return i
 
 def parseHeader2Reference(tokens, i, parent):
     if i >= len(tokens):
         return i
+
     node = createNode(parent, {
         'type': 'header2-reference'
     })
-    debug(node, tokens, i, 'parseHeader2Reference')
+    debug(parent, tokens, i, 'parseHeader2Reference')
     j = i
     i = parsePosition(tokens, i, node)
+
     # le {order}° ({multiplicativeAdverb}) ({articlePartRef})
     # du {order}° ({multiplicativeAdverb}) ({articlePartRef})
     # au {order}° ({multiplicativeAdverb}) ({articlePartRef})
@@ -883,12 +978,20 @@ def parseHeader2Reference(tokens, i, parent):
         i += 4
         i = parseMultiplicativeAdverb(tokens, i, node)
         i = parseArticlePartReference(tokens, i, node)
+    # le même {order}° ({multiplicativeAdverb}) ({articlePartRef})
+    # du même {order}° ({multiplicativeAdverb}) ({articlePartRef})
+    # au même {order}° ({multiplicativeAdverb}) ({articlePartRef})
+    elif tokens[i].lower() in [u'le', u'du', u'au'] and tokens[i + 2] == u'même' and re.compile(u'\d+°').match(tokens[i + 4]):
+        node['order'] = parseInt(tokens[i + 4])
+        i += 6
+        i = parseMultiplicativeAdverb(tokens, i, node)
+        i = parseArticlePartReference(tokens, i, node)
     else:
-        debug(node, tokens, i, 'parseHeader2Reference none')
+        debug(parent, tokens, i, 'parseHeader2Reference none')
         removeNode(parent, node)
         return j
     # i = parseQuote(tokens, i, node)
-    debug(node, tokens, i, 'parseHeader2Reference end')
+    debug(parent, tokens, i, 'parseHeader2Reference end')
     return i
 
 def parseHeader1Reference(tokens, i, parent):
@@ -898,7 +1001,7 @@ def parseHeader1Reference(tokens, i, parent):
         'type': 'header1-reference',
         'children': []
     })
-    debug(node, tokens, i, 'parseHeader1Reference')
+    debug(parent, tokens, i, 'parseHeader1Reference')
     j = i
     i = parsePosition(tokens, i, node)
     # le {romanPartNumber}
@@ -907,14 +1010,14 @@ def parseHeader1Reference(tokens, i, parent):
         node['order'] = parseRomanNumber(tokens[i + 2])
         i += 4
     else:
-        debug(node, tokens, i, 'parseHeader1Reference end')
+        debug(parent, tokens, i, 'parseHeader1Reference end')
         removeNode(parent, node)
         return j
 
     i = parseArticlePartReference(tokens, i, node)
     # i = parseQuote(tokens, i, node)
 
-    debug(node, tokens, i, 'parseHeader1Reference end')
+    debug(parent, tokens, i, 'parseHeader1Reference end')
 
     return i
 
@@ -965,7 +1068,7 @@ def parseQuote(tokens, i, parent):
         'words': ''
     })
 
-    debug(node, tokens, i, 'parseQuote')
+    debug(parent, tokens, i, 'parseQuote')
 
     i = skipSpaces(tokens, i)
 
@@ -989,7 +1092,7 @@ def parseQuote(tokens, i, parent):
     i += 1
     i = skipSpaces(tokens, i)
 
-    debug(node, tokens, i, 'parseQuote end')
+    debug(parent, tokens, i, 'parseQuote end')
 
     return i
 
@@ -1002,7 +1105,7 @@ def parseEdit(tokens, i, parent):
         'type': 'edit'
     })
 
-    debug(node, tokens, i, 'parseEdit')
+    debug(parent, tokens, i, 'parseEdit')
 
     r = i
     # i = parseForEach(parseReference, tokens, i, node)
@@ -1011,18 +1114,19 @@ def parseEdit(tokens, i, parent):
 
     i = skipSpaces(tokens, i)
 
-    if len(node['children']) == 0:
+    # if we didn't find any reference as a subject and the subject/verb are not reversed
+    if len(node['children']) == 0 and tokens[i] != 'Est' and tokens[i] != 'Sont':
         removeNode(parent, node)
-        debug(node, tokens, i, 'parseEdit none')
+        debug(parent, tokens, i, 'parseEdit none')
         return i
     # i = r
 
     j = i
-    i = skipTokens(tokens, i, lambda t: t != 'est' and t != 'sont' and not t[0].isupper())
+    i = skipTokens(tokens, i, lambda t: t.lower() not in ['est', 'sont', 'devient'] and not t[0].isupper())
 
     if i >= len(tokens):
         removeNode(parent, node)
-        debug(node, tokens, i, 'parseEdit eof')
+        debug(parent, tokens, i, 'parseEdit eof')
         return j
 
     # sont supprimés
@@ -1036,14 +1140,15 @@ def parseEdit(tokens, i, parent):
     if tokens[i + 2].startswith(u'supprimé') or tokens[i + 2].startswith(u'abrogé'):
         node['editType'] = 'delete'
         i = skipToEndOfLine(tokens, i)
-    # est ainsi modifié
     # est ainsi rédigé
-    elif tokens[i + 4] == u'modifié' or tokens[i + 4] == u'rédigé':
+    # est ainsi rédigée
+    # est ainsi modifié
+    # est ainsi modifiée
+    elif tokens[i + 4].startswith(u'rédigé') or tokens[i + 4].startswith(u'modifié'):
         node['editType'] = 'edit'
         i = skipToEndOfLine(tokens, i)
         i = skipSpaces(tokens, i)
-        # i = parseForEach(parseQuote, tokens, i, node)
-        i = parseWordsDefinition(tokens, i, node)
+        i = parseDefinition(tokens, i, node)
     # est remplacé par
     # est remplacée par
     # sont remplacés par
@@ -1077,15 +1182,27 @@ def parseEdit(tokens, i, parent):
         i += 4
         i = parseDefinition(tokens, i, node)
         i = skipToEndOfLine(tokens, i)
+    # est ainsi rétabli
+    elif tokens[i + 4].startswith(u'rétabli'):
+        node['editType'] = 'add'
+        i = skipToEndOfLine(tokens, i)
+        i = skipSpaces(tokens, i)
+        i = parseDefinition(tokens, i, node)
     # est complété par
     elif tokens[i + 2] == u'complété':
         node['editType'] = 'add'
         i += 6
-        i = parseDefinition(tokens, i, node)
+        # i = parseDefinition(tokens, i, node)
+        i = parseDefinitionList(tokens, i, node)
         # i = skipToEndOfLine(tokens, i)
+    # devient
+    elif tokens[i] == u'devient':
+        node['editType'] = 'rename'
+        i += 2
+        i = parseDefinition(tokens, i, node)
     else:
         i = r
-        debug(node, tokens, i, 'parseEdit remove')
+        debug(parent, tokens, i, 'parseEdit remove')
         removeNode(parent, node)
         i = parseRawArticleContent(tokens, i, parent)
         i = skipToEndOfLine(tokens, i)
@@ -1097,7 +1214,7 @@ def parseEdit(tokens, i, parent):
     # the line.
     i = skipToEndOfLine(tokens, i)
 
-    debug(node, tokens, i, 'parseEdit end')
+    debug(parent, tokens, i, 'parseEdit end')
 
     return i
 
@@ -1107,7 +1224,7 @@ def parseRawArticleContent(tokens, i, parent):
         'content': ''
     })
 
-    debug(node, tokens, i, 'parseRawArticleContent')
+    debug(parent, tokens, i, 'parseRawArticleContent')
 
     while i < len(tokens) and tokens[i] != TOKEN_NEW_LINE:
         node['content'] += tokens[i]
@@ -1116,7 +1233,7 @@ def parseRawArticleContent(tokens, i, parent):
     if node['content'] == '' or isSpace(node['content']):
         removeNode(parent, node)
 
-    debug(node, tokens, i, 'parseRawArticleContent end')
+    debug(parent, tokens, i, 'parseRawArticleContent end')
 
     return i
 
@@ -1141,7 +1258,7 @@ def parseCodeReference(tokens, i, parent):
         'children': []
     })
 
-    debug(node, tokens, i, 'parseCodeReference')
+    debug(parent, tokens, i, 'parseCodeReference')
 
     # code
     if tokens[i] == u'code':
@@ -1160,6 +1277,7 @@ def parseCodeReference(tokens, i, parent):
         )
         # the last one in order of traversal is the previous one in order of syntax
         node = copyNode(codeRefs[-1])
+        node['children'] = []
         pushNode(parent, node)
         # skip "le même code "
         i += 6
@@ -1173,6 +1291,19 @@ def parseCodeReference(tokens, i, parent):
 
     return i
 
+def parseDefinitionList(tokens, i, parent):
+    if i >= len(tokens):
+        return i
+
+    i = parseDefinition(tokens, i, parent)
+    i = skipSpaces(tokens, i)
+    if ((i + 2 < len(tokens) and tokens[i] == u',' and tokens[i + 2] in [u'à', u'au'])
+        or (i + 2 < len(tokens) and tokens[i] == u'et')):
+        i = parseDefinitionList(tokens, i + 2, parent)
+    i = skipSpaces(tokens, i)
+
+    return i
+
 # Parse multiple references separated by comas or the "et" word.
 # All the parsed references will be siblings in parent['children'] and resolveFullyQualifiedReferences + sortReferences
 # will take care of reworking the tree to make sure each reference in the list is complete and consistent.
@@ -1181,7 +1312,6 @@ def parseReferenceList(tokens, i, parent):
         return i
 
     i = parseReference(tokens, i, parent)
-    # i = parseForEach(parseReference, tokens, i, parent)
     i = skipSpaces(tokens, i)
     if ((i + 2 < len(tokens) and tokens[i] == u',' and tokens[i + 2] in [u'à', u'au'])
         or (i + 2 < len(tokens) and tokens[i] == u'et')):
@@ -1239,16 +1369,16 @@ def parseArticleHeader1(tokens, i, parent):
     i = skipSpaces(tokens, i)
 
     node = createNode(parent, {
-        'type': 'header-1',
+        'type': 'header1',
         'order': 0,
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseArticleHeader1')
+    debug(parent, tokens, i, 'parseArticleHeader1')
 
     # skip '{romanNumber}.'
     if isRomanNumber(tokens[i]) and tokens[i + 1] == u'.':
-        debug(node, tokens, i, 'parseArticleHeader1 found article header-1')
+        debug(parent, tokens, i, 'parseArticleHeader1 found article header-1')
         node['order'] = parseRomanNumber(tokens[i])
         i = skipToNextWord(tokens, i + 2)
     else:
@@ -1264,7 +1394,7 @@ def parseArticleHeader1(tokens, i, parent):
     if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
-    debug(node, tokens, i, 'parseArticleHeader1 end')
+    debug(parent, tokens, i, 'parseArticleHeader1 end')
 
     return i
 
@@ -1275,16 +1405,16 @@ def parseArticleHeader2(tokens, i, parent):
         return i
 
     node = createNode(parent, {
-        'type': 'header-2',
+        'type': 'header2',
         'order': 0,
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseArticleHeader2')
+    debug(parent, tokens, i, 'parseArticleHeader2')
 
     i = skipSpaces(tokens, i)
     if re.compile(u'\d+°').match(tokens[i]):
-        debug(node, tokens, i, 'parseArticleHeader2 found article header-2')
+        debug(parent, tokens, i, 'parseArticleHeader2 found article header-2')
 
         node['order'] = parseInt(tokens[i])
         # skip {number}°
@@ -1299,7 +1429,7 @@ def parseArticleHeader2(tokens, i, parent):
     if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
-    debug(node, tokens, i, 'parseArticleHeader2 end')
+    debug(parent, tokens, i, 'parseArticleHeader2 end')
 
     return i
 
@@ -1310,11 +1440,11 @@ def parseArticleHeader3(tokens, i, parent):
         return i
 
     node = createNode(parent, {
-        'type': 'header-3',
+        'type': 'header3',
         'children': [],
     })
 
-    debug(node, tokens, i, 'parseArticleHeader3')
+    debug(parent, tokens, i, 'parseArticleHeader3')
 
     i = skipSpaces(tokens, i)
     match = re.compile('([a-z]+)').match(tokens[i])
@@ -1335,16 +1465,22 @@ def parseArticleHeader3(tokens, i, parent):
     if node != parent and len(node['children']) == 0:
         removeNode(parent, node)
 
-    debug(node, tokens, i, 'parseArticleHeader3 end')
+    debug(parent, tokens, i, 'parseArticleHeader3 end')
 
     return i
 
 def parseForEach(fn, tokens, i, parent):
-    test = fn(tokens, i, parent)
+    n = parent() if callable(parent) else parent
+    test = fn(tokens, i, n)
+    if (test == i or len(n['children']) == 0) and callable(parent):
+        removeNode(n['parent'], n)
 
-    while (test != i):
+    while test != i:
         i = test
-        test = fn(tokens, i, parent)
+        n = parent() if callable(parent) else parent
+        test = fn(tokens, i, n)
+        if (test == i or len(n['children']) == 0) and callable(parent):
+            removeNode(n['parent'], n)
 
     return i
 
@@ -1441,8 +1577,56 @@ def sortReferences(node):
             else:
                 pushNode(filtered_refs[i - 1], ref)
 
+def resolveFullyQualifiedDefinitions(node):
+    def_types = [
+        'alinea',
+        'sentence'
+    ]
+
+    if 'type' in node and node['type'] == 'edit':
+        def_nodes = filterNodes(node, lambda x : x['type'] in def_types)
+        # if we have more than 1 definition in a single edit, we assume:
+        # - they have different types
+        # - the final type of definition is the combination of all those types
+        if len(def_nodes) > 1:
+            content_nodes = filter(lambda x : len(x['children']) > 0, def_nodes)
+            type_nodes = filter(lambda x : len(x['children']) == 0, def_nodes)
+            types = []
+            for type_node in type_nodes:
+                removeNode(node, type_node)
+                types.append(type_node)
+                del type_node['count']
+                # if 'count' in type_node and type_node['count'] == len(content_nodes):
+                # FIXME: else we should issue a warning because the count doesn't match and the type qualifier cannot
+                # apply
+            for content_node in content_nodes:
+                children = []
+                for child in content_node['children']:
+                    children.append(child)
+                    removeNode(content_node, child)
+                removeNode(node, content_node)
+                sorted_types = sorted(types + [content_node], key=lambda x : def_types.index(x['type']))
+                type_node = node
+                for sorted_type in sorted_types:
+                    t = copyNode(sorted_type)
+                    pushNode(type_node, t)
+                    type_node = t
+                for child in children:
+                    pushNode(type_node, child)
+    elif 'children' in node and node['children'] > 0:
+        for child in node['children']:
+            resolveFullyQualifiedDefinitions(child)
+
 def resolveFullyQualifiedReferences(node):
     resolveFullyQualifiedReferences_rec(node, [])
+
+def getNodeAncestors(node):
+    a = []
+    node = node['parent']
+    while node and 'type' in node:
+        a.append(node)
+        node = node['parent']
+    return a
 
 def resolveFullyQualifiedReferences_rec(node, ctx):
     ref_types = [
@@ -1456,8 +1640,14 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
         'header3-reference',
         'alinea-reference',
         'sentence-reference',
-        'words-reference'
+        'words-reference',
+        'incomplete-reference'
     ]
+
+    # If we are on an edit node that has edit ancestors
+    # if 'type' in node and len(filter(lambda x : x['type'] == 'edit', getNodeAncestors(node))) > 0:
+    #     # FIXME
+    #     None
     # If we have an 'edit' node in an 'edit' node, the parent gives its
     # context to its descendants.
     if 'type' in node and node['type'] not in ref_types and len(node['children']) > 1 and node['children'][0]['type'] == 'edit' and node['children'][0]['editType'] == 'edit':
@@ -1467,13 +1657,26 @@ def resolveFullyQualifiedReferences_rec(node, ctx):
         for child in node['children']:
             resolveFullyQualifiedReferences_rec(child, ctx)
         ctx.pop()
+    # If we have a context and there is no ref type at all and we're not on a 'swap' edit
+    elif len(ctx) > 0 and node['type'] == 'edit' and len(filterNodes(node, lambda x : x['type'] in ref_types)) == 0:
+        n = [copyNode(item) for sublist in ctx for item in sublist]
+        n = sorted(n, key=lambda x : ref_types.index(x['type']))
+        unshiftNode(node, n[0])
+        for i in range(1, len(n)):
+            unshiftNode(n[i - 1], n[i])
+    # If we have a context and we're on root ref type
     elif len(ctx) > 0 and 'type' in node and node['type'] in ref_types and node['parent']['type'] not in ref_types:
         n = [copyNode(item) for sublist in ctx for item in sublist]
+        n = sorted(n, key=lambda x : ref_types.index(x['type']))
         unshiftNode(node['parent'], n[0])
         for i in range(1, len(n)):
             unshiftNode(n[i - 1], n[i])
         removeNode(node['parent'], node)
-        unshiftNode(n[len(n) - 1], node)
+        if node['type'] == 'incomplete-reference':
+            if 'position' in node:
+                n[len(n) - 1]['position'] = node['position']
+        else:
+            unshiftNode(n[len(n) - 1], node)
     # If we have multiple *-reference node in a single 'edit' node
     elif 'type' in node and node['type'] == 'edit' and len(filterNodes(node, lambda x: x['type'] in ref_types and x['parent'] == node and len(filterNodes(node, lambda y: y['type'] == x['type'])) == 1)) > 1:
         local_ctx = [copyNode(item) for item in filterNodes(node, lambda x: x['type'] in ref_types)]
@@ -1506,6 +1709,7 @@ def removeEmptyChildrenList(root):
 def handleData(data):
     ast = parseJSONData(json.loads(data))
 
+    resolveFullyQualifiedDefinitions(ast)
     resolveFullyQualifiedReferences(ast)
     sortReferences(ast)
     deleteParent(ast)

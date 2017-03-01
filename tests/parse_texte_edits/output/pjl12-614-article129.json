@@ -10,7 +10,7 @@
             }
           ], 
           "order": 1, 
-          "type": "header-1"
+          "type": "header1"
         }, 
         {
           "children": [
@@ -58,7 +58,7 @@
             }
           ], 
           "order": 2, 
-          "type": "header-1"
+          "type": "header1"
         }
       ], 
       "isNew": false, 

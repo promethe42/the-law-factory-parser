@@ -39,7 +39,7 @@
             }
           ], 
           "order": 1, 
-          "type": "header-2"
+          "type": "header2"
         }, 
         {
           "children": [
@@ -78,7 +78,7 @@
                 }
               ], 
               "order": 1, 
-              "type": "header-3"
+              "type": "header3"
             }, 
             {
               "children": [
@@ -132,7 +132,7 @@
                 }
               ], 
               "order": 2, 
-              "type": "header-3"
+              "type": "header3"
             }, 
             {
               "children": [
@@ -163,11 +163,11 @@
                 }
               ], 
               "order": 3, 
-              "type": "header-3"
+              "type": "header3"
             }
           ], 
           "order": 2, 
-          "type": "header-2"
+          "type": "header2"
         }
       ], 
       "isNew": false, 
