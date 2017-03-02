@@ -8,21 +8,10 @@ import codecs
 import os
 
 TOKEN_DELIMITERS = re.compile(u'(\xa0|\s|\(|\)|\.|\!|\'|,|")')
-TOKEN_ARTICLE = u'Article'
-TOKEN_NEW_ARTICLE = u'nouveau'
-TOKEN_ARTICLE_REFERENCE = u'article'
 TOKEN_NEW_LINE = '\n'
 TOKEN_SINGLE_QUOTE = u'\''
 TOKEN_DOUBLE_QUOTE_OPEN = u'"'
 TOKEN_DOUBLE_QUOTE_CLOSE = u'"'
-TOKEN_PARTS = [
-    u'livre', u'livres',
-    u'article', u'articles',
-    u'titre', u'titres',
-    u'alinéa', u'alinéas',
-    u'phrase', u'phrases',
-    u'mention', u'mentions'
-]
 TOKEN_MONTH_NAMES = [
     u'janvier',
     u'février',
@@ -105,9 +94,6 @@ def isNumber(token):
 
 def isSpace(token):
     return re.compile('^\s+$').match(token)
-
-def isArticlePart(token):
-    return token in TOKEN_PARTS >= 0
 
 def parseInt(s):
     return int(re.search(r'\d+', s).group())
